@@ -26,6 +26,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -168,7 +169,6 @@ public class WXScroller extends WXVContainer<ViewGroup> implements WXScrollViewL
 
             event.put(Constants.Name.CONTENT_SIZE, contentSize);
             event.put(Constants.Name.CONTENT_OFFSET, contentOffset);
-
             fireEvent(Constants.Event.SCROLL, event);
           }
         }
@@ -186,6 +186,34 @@ public class WXScroller extends WXVContainer<ViewGroup> implements WXScrollViewL
         @Override
         public void onScroll(WXScrollView scrollView, int x, int y) {
           //ignore
+        }
+      });
+    }else if(Constants.Event.SCROLL.equals(type) && getInnerView() != null && getInnerView() instanceof WXHorizontalScrollView){
+      ((WXHorizontalScrollView)getInnerView()).setScrollViewListener(new WXHorizontalScrollView.ScrollViewListener() {
+
+
+        @Override
+        public void onScrollChanged(WXHorizontalScrollView scrollView, int x, int y, int oldx,
+                                    int oldy) {
+          if (shouldReport(x, y)) {
+            Rect frame = scrollView.getContentFrame();
+
+            Map<String, Object> event = new HashMap<>(2);
+            Map<String, Object> contentSize = new HashMap<>(2);
+            Map<String, Object> contentOffset = new HashMap<>(2);
+
+            int viewport = getInstance().getInstanceViewPortWidth();
+
+            contentSize.put(Constants.Name.WIDTH, WXViewUtils.getWebPxByWidth(frame.width(), viewport));
+            contentSize.put(Constants.Name.HEIGHT, WXViewUtils.getWebPxByWidth(frame.height(), viewport));
+
+            contentOffset.put(Constants.Name.X, - WXViewUtils.getWebPxByWidth(x, viewport));
+            contentOffset.put(Constants.Name.Y, - WXViewUtils.getWebPxByWidth(y, viewport));
+
+            event.put(Constants.Name.CONTENT_SIZE, contentSize);
+            event.put(Constants.Name.CONTENT_OFFSET, contentOffset);
+            fireEvent(Constants.Event.SCROLL, event);
+          }
         }
       });
     }

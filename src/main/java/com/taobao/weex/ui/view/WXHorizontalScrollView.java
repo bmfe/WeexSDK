@@ -19,6 +19,7 @@
 package com.taobao.weex.ui.view;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -99,5 +100,9 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
 
   public void setScrollable(boolean scrollable) {
     this.scrollable = scrollable;
+  }
+
+  public Rect getContentFrame() {
+    return new Rect(0, 0, computeHorizontalScrollRange(), computeVerticalScrollRange());
   }
 }
