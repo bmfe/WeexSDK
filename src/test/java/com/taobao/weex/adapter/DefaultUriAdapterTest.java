@@ -66,7 +66,6 @@ public class DefaultUriAdapterTest {
         }
       });
     }
-
     adapter = new DefaultUriAdapter();
     instance = WXSDKInstanceTest.createInstance();
   }

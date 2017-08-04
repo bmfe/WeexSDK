@@ -76,7 +76,7 @@ android {
         minSdkVersion 14
         targetSdkVersion project.androidTargetSDK
         versionCode 1
-        versionName "1.0"
+        versionName "1.1"
         ndk {
             abiFilters "armeabi","x86"
         }

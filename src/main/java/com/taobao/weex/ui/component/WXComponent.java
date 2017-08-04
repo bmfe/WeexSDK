@@ -42,6 +42,7 @@ import android.widget.FrameLayout;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.taobao.weex.ComponentObserver;
 import com.taobao.weex.IWXActivityStateListener;
 import com.taobao.weex.WXEnvironment;
 import com.taobao.weex.WXSDKInstance;
@@ -123,6 +124,7 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
   private boolean mIsDestroyed = false;
   private boolean mIsDisabled = false;
   private int mType = TYPE_COMMON;
+  private boolean mNeedLayoutOnAnimation = false;
 
   public static final int TYPE_COMMON = 0;
   public static final int TYPE_VIRTUAL = 1;
@@ -227,6 +229,10 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
     mGestureType = new HashSet<>();
     ++mComponentNum;
     onCreate();
+    ComponentObserver observer;
+    if ((observer = getInstance().getComponentObserver()) != null) {
+      observer.onCreate(this);
+    }
   }
 
   protected void onCreate(){
@@ -708,6 +714,19 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
     }
   }
 
+  private void setPerspective(Object param) {
+    T host = getHostView();
+    if (host != null) {
+      float value = WXUtils.getFloatByViewport(param, getInstance().getInstanceViewPortWidth());
+      float scale = host.getResources().getDisplayMetrics().density;
+      if (!Float.isNaN(value) && value > 0) {
+        host.setCameraDistance(value * scale);
+      } else {
+        host.setCameraDistance(Float.MAX_VALUE);
+      }
+    }
+  }
+
   @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
   protected void setAriaHidden(boolean isHidden) {
     View host = getHostView();
@@ -759,7 +778,7 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
    * @param type
    */
   public void addEvent(String type) {
-    if (TextUtils.isEmpty(type)) {
+    if (TextUtils.isEmpty(type) || mAppendEvents.contains(type)) {
       return;
     }
     mAppendEvents.add(type);
@@ -850,6 +869,17 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
     }
   }
 
+  /**
+   * get Scroller components
+   */
+  @Nullable
+  public Scrollable getFirstScroller() {
+   if(this instanceof Scrollable){
+     return (Scrollable)this;
+   }
+   return null;
+  }
+
   public WXVContainer getParent() {
     return mParent;
   }
@@ -880,6 +910,10 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
       }
       if(mHost != null){
         mHost.setId(WXViewUtils.generateViewId());
+        ComponentObserver observer;
+        if ((observer = getInstance().getComponentObserver()) != null) {
+          observer.onViewCreated(this, mHost);
+        }
       }
       onHostViewInitialized(mHost);
     }else{
@@ -918,6 +952,9 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
    */
   @CallSuper
   protected void onHostViewInitialized(T host){
+    if(host!=null){
+      host.setCameraDistance(Float.MAX_VALUE);
+    }
     if (mAnimationHolder != null) {
       //Performs cached animation
       mAnimationHolder.execute(mInstance, this);
@@ -1250,6 +1287,11 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
   }
 
   public void destroy() {
+    ComponentObserver observer;
+    if ((observer = getInstance().getComponentObserver()) != null) {
+      observer.onPreDestory(this);
+    }
+
     if (WXEnvironment.isApkDebugable() && !WXUtils.isUiThread()) {
       throw new WXRuntimeException("[WXComponent] destroy can only be called in main thread");
     }
@@ -1369,8 +1411,27 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
      */
   @CheckResult
   protected Object convertEmptyProperty(String propName, Object originalValue) {
-    if (Constants.Name.BACKGROUND_COLOR.equals(propName)) {
-      return "transparent";
+    switch (propName) {
+      case Constants.Name.BACKGROUND_COLOR:
+        return "transparent";
+      case Constants.Name.BORDER_RADIUS:
+      case Constants.Name.BORDER_BOTTOM_LEFT_RADIUS:
+      case Constants.Name.BORDER_BOTTOM_RIGHT_RADIUS:
+      case Constants.Name.BORDER_TOP_LEFT_RADIUS:
+      case Constants.Name.BORDER_TOP_RIGHT_RADIUS:
+        return 0;
+      case Constants.Name.BORDER_WIDTH:
+      case Constants.Name.BORDER_TOP_WIDTH:
+      case Constants.Name.BORDER_LEFT_WIDTH:
+      case Constants.Name.BORDER_RIGHT_WIDTH:
+      case Constants.Name.BORDER_BOTTOM_WIDTH:
+        return 0;
+      case Constants.Name.BORDER_COLOR:
+      case Constants.Name.BORDER_TOP_COLOR:
+      case Constants.Name.BORDER_LEFT_COLOR:
+      case Constants.Name.BORDER_RIGHT_COLOR:
+      case Constants.Name.BORDER_BOTTOM_COLOR:
+        return "black";
     }
     return originalValue;
   }
@@ -1475,5 +1536,42 @@ public abstract class  WXComponent<T extends View> implements IWXObject, IWXActi
 
   {
     return null;
+  }
+
+
+    /**
+   * Sets whether or not to relayout page during animation, default is false
+   */
+  public void setNeedLayoutOnAnimation(boolean need) {
+    this.mNeedLayoutOnAnimation = need;
+  }
+
+  /**
+   * Trigger a updateStyle invoke to relayout current page
+   */
+  public void notifyNativeSizeChanged(int w, int h) {
+    if (!mNeedLayoutOnAnimation) {
+      return;
+    }
+
+    Message message = Message.obtain();
+    WXDomTask task = new WXDomTask();
+    task.instanceId = getInstanceId();
+    if (task.args == null) {
+      task.args = new ArrayList<>();
+    }
+
+    JSONObject style = new JSONObject(2);
+    float webW = WXViewUtils.getWebPxByWidth(w);
+    float webH = WXViewUtils.getWebPxByWidth(h);
+
+    style.put("width", webW);
+    style.put("height", webH);
+
+    task.args.add(getRef());
+    task.args.add(style);
+    message.obj = task;
+    message.what = WXDomHandler.MsgType.WX_DOM_UPDATE_STYLE;
+    WXSDKManager.getInstance().getWXDomManager().sendMessage(message);
   }
 }
