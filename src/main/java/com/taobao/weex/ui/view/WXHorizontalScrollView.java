@@ -29,6 +29,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.HorizontalScrollView;
 
+import com.taobao.weex.common.Constants;
 import com.taobao.weex.common.WXThread;
 import com.taobao.weex.ui.view.gesture.WXGesture;
 import com.taobao.weex.ui.view.gesture.WXGestureObservable;
@@ -79,6 +80,7 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
     @Override
     protected void onScrollChanged(int l, int t, int oldl, int oldt) {
         super.onScrollChanged(l, t, oldl, oldt);
+
         if (mScrollViewListener != null) {
             mScrollViewListener.onScrollChanged(this, l, t, oldl, oldt);
         }
@@ -264,7 +266,7 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
         post(new Runnable() {
             @Override
             public void run() {
-                scrollTo(mCurrentPage * mPageWidth, 0);
+                smoothScrollTo(mCurrentPage * mPageWidth, 0);
             }
         });
 
