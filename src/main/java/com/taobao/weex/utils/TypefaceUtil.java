@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,6 +22,7 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.taobao.weex.WXEnvironment;
 import com.taobao.weex.WXSDKManager;
@@ -42,6 +43,7 @@ public class TypefaceUtil {
   public static final String FONT_CACHE_DIR_NAME = "font-family";
   private final static String TAG = "TypefaceUtil";
   private final static Map<String, FontDO> sCacheMap = new HashMap<>(); //Key: fontFamilyName
+  private final static IconFontMapper mapper = IconFontMapper.getInstance();
 
   public static void putFontDO(FontDO fontDO) {
     if (fontDO != null && !TextUtils.isEmpty(fontDO.getFontFamilyName())) {
@@ -64,12 +66,12 @@ public class TypefaceUtil {
 
     int want = 0;
     if ((weight == Typeface.BOLD)
-      || ((oldStyle & Typeface.BOLD) != 0 && weight == WXStyle.UNSET)) {
+            || ((oldStyle & Typeface.BOLD) != 0 && weight == WXStyle.UNSET)) {
       want |= Typeface.BOLD;
     }
 
     if ((style == Typeface.ITALIC)
-      || ((oldStyle & Typeface.ITALIC) != 0 && style == WXStyle.UNSET)) {
+            || ((oldStyle & Typeface.ITALIC) != 0 && style == WXStyle.UNSET)) {
       want |= Typeface.ITALIC;
     }
 
@@ -93,11 +95,12 @@ public class TypefaceUtil {
     return Typeface.create(family, style);
   }
 
-  private static void loadFromAsset(FontDO fontDo,String path){
+  private static void loadFromAsset(FontDO fontDo, String path) {
     try {
-      Typeface typeface = Typeface.createFromAsset(WXEnvironment.getApplication().getAssets(), path);
+      Typeface typeface = Typeface.createFromAsset(WXEnvironment.getApplication().getAssets
+              (), path);
       if (typeface != null) {
-        if(WXEnvironment.isApkDebugable()) {
+        if (WXEnvironment.isApkDebugable()) {
           WXLogUtils.d(TAG, "load asset file success");
         }
         fontDo.setState(FontDO.STATE_SUCCESS);
@@ -112,21 +115,33 @@ public class TypefaceUtil {
 
   public static void loadTypeface(final FontDO fontDo) {
     if (fontDo != null && fontDo.getTypeface() == null &&
-            (fontDo.getState() == FontDO.STATE_FAILED || fontDo.getState() == FontDO.STATE_INIT)) {
+            (fontDo.getState() == FontDO.STATE_FAILED || fontDo.getState() == FontDO
+                    .STATE_INIT)) {
       fontDo.setState(FontDO.STATE_LOADING);
       if (fontDo.getType() == FontDO.TYPE_LOCAL) {
         Uri uri = Uri.parse(fontDo.getUrl());
-        loadFromAsset(fontDo,uri.getPath().substring(1));//exclude slash
+        loadFromAsset(fontDo, uri.getPath().substring(1));//exclude slash
       } else if (fontDo.getType() == FontDO.TYPE_NETWORK) {
         final String url = fontDo.getUrl();
         final String fontFamily = fontDo.getFontFamilyName();
         final String fileName = url.replace('/', '_').replace(':', '_');
-        File dir = new File(getFontCacheDir());
-        if(!dir.exists()){
+
+//        File dir = new File(getFontCacheDir());
+//        if(!dir.exists()){
+//          dir.mkdirs();
+//        }
+
+        File dir = new File(getFontDir());
+        if (!dir.exists()) {
           dir.mkdirs();
         }
-        final String fullPath =  dir.getAbsolutePath()+ File.separator +fileName;
-        if (!loadLocalFontFile(fullPath, fontFamily)) {
+
+        final String fullPath = dir.getAbsolutePath() + File.separator + ".bundle" + File
+                .separator + "pages" + File
+                .separator + "iconfont.ttf";
+        mapper.put(url, fullPath);
+
+        if (!loadLocalFontFile(mapper.get(url), fontFamily)) {
           downloadFontByNetwork(url, fullPath, fontFamily);
         }
       } else if (fontDo.getType() == FontDO.TYPE_FILE) {
@@ -138,7 +153,8 @@ public class TypefaceUtil {
     }
   }
 
-  private static void downloadFontByNetwork(final String url, final String fullPath, final String fontFamily) {
+  private static void downloadFontByNetwork(final String url, final String fullPath, final
+  String fontFamily) {
     IWXHttpAdapter adapter = WXSDKManager.getInstance().getIWXHttpAdapter();
     if (adapter == null) {
       WXLogUtils.e(TAG, "downloadFontByNetwork() IWXHttpAdapter == null");
@@ -150,7 +166,7 @@ public class TypefaceUtil {
     adapter.sendRequest(request, new IWXHttpAdapter.OnHttpListener() {
       @Override
       public void onHttpStart() {
-        if(WXEnvironment.isApkDebugable()) {
+        if (WXEnvironment.isApkDebugable()) {
           WXLogUtils.d(TAG, "downloadFontByNetwork begin url:" + url);
         }
       }
@@ -178,17 +194,20 @@ public class TypefaceUtil {
             statusCode = Integer.parseInt(response.statusCode);
           } catch (NumberFormatException e) {
             statusCode = 0;
-            WXLogUtils.e(TAG, "IWXHttpAdapter onHttpFinish statusCode:" + response.statusCode);
+            WXLogUtils.e(TAG, "IWXHttpAdapter onHttpFinish statusCode:" + response
+                    .statusCode);
           }
         }
         boolean result;
         if (statusCode >= 200 && statusCode <= 299 && response.originalData != null) {
-          result = WXFileUtils.saveFile(fullPath, response.originalData, WXEnvironment.getApplication());
+          result = WXFileUtils.saveFile(fullPath, response.originalData, WXEnvironment
+                  .getApplication());
           if (result) {
             result = loadLocalFontFile(fullPath, fontFamily);
           } else {
-            if(WXEnvironment.isApkDebugable()) {
-              WXLogUtils.d(TAG, "downloadFontByNetwork() onHttpFinish success, but save file failed.");
+            if (WXEnvironment.isApkDebugable()) {
+              WXLogUtils.d(TAG, "downloadFontByNetwork() onHttpFinish success, but " +
+                      "save file failed.");
             }
           }
         } else {
@@ -220,7 +239,7 @@ public class TypefaceUtil {
         if (fontDo != null) {
           fontDo.setState(FontDO.STATE_SUCCESS);
           fontDo.setTypeface(typeface);
-          if(WXEnvironment.isApkDebugable()) {
+          if (WXEnvironment.isApkDebugable()) {
             WXLogUtils.d(TAG, "load local font file success");
           }
           return true;
@@ -235,6 +254,46 @@ public class TypefaceUtil {
   }
 
   private static String getFontCacheDir() {
-    return WXEnvironment.getDiskCacheDir(WXEnvironment.getApplication()) + "/" + FONT_CACHE_DIR_NAME;
+    return WXEnvironment.getDiskCacheDir(WXEnvironment.getApplication()) + "/" +
+            FONT_CACHE_DIR_NAME;
   }
+
+
+  private static String getFontDir() {
+    return WXEnvironment.getDiskDir(WXEnvironment.getApplication());
+  }
+
+
+  public static class IconFontMapper {
+    private static Map<String, String> pathMapper;
+    private static IconFontMapper mInstance = new IconFontMapper();
+
+    private IconFontMapper() {
+      if (pathMapper == null) {
+        pathMapper = new HashMap<>();
+      }
+    }
+
+    public static IconFontMapper getInstance() {
+      return mInstance;
+    }
+
+    public void put(String key, String value) {
+      if (pathMapper.keySet().contains(key)) {
+        return;
+      }
+      if (pathMapper.size() == 0) {
+        pathMapper.put(key, WXEnvironment.getDiskDir(WXEnvironment.getApplication()) +
+                File.separator + ".bundle" + File.separator + "pages" + File.separator +
+                "iconfont.ttf");
+      } else {
+        pathMapper.put(key, value);
+      }
+    }
+
+    public String get(String key) {
+      return pathMapper.get(key);
+    }
+  }
+
 }

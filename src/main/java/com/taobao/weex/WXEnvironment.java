@@ -260,4 +260,18 @@ public class WXEnvironment {
     return path;
   }
 
+  public static String getDiskDir(Context context){
+    if(context ==null){
+      return null;
+    }
+    String path;
+    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())
+            || !Environment.isExternalStorageRemovable()) {
+      path = context.getExternalFilesDir(null).getPath();
+    } else {
+      path = context.getFilesDir().getPath();
+    }
+    return path;
+  }
+
 }
