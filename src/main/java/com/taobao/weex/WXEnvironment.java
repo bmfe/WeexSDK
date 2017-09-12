@@ -260,6 +260,7 @@ public class WXEnvironment {
     return path;
   }
 
+
   public static String getDiskDir(Context context){
     if(context ==null){
       return null;
