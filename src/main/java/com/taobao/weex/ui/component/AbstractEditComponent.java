@@ -20,6 +20,8 @@ package com.taobao.weex.ui.component;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -51,10 +53,12 @@ import com.taobao.weex.ui.component.helper.WXTimeInputHelper;
 import com.taobao.weex.ui.component.inpututil.BMKeyboardUtil;
 import com.taobao.weex.ui.component.inpututil.InputInter;
 import com.taobao.weex.ui.view.WXEditText;
+import com.taobao.weex.utils.ColorUtils;
 import com.taobao.weex.utils.WXLogUtils;
 import com.taobao.weex.utils.WXResourceUtils;
 import com.taobao.weex.utils.WXUtils;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -276,7 +280,6 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
 
     /**
      * mock bulr事件
-     * @param eventType
      */
     private void mockBlurEvent(String eventType) {
         if ("blur".equals(eventType)) {
@@ -386,9 +389,38 @@ public abstract class AbstractEditComponent extends WXComponent<WXEditText> {
             case Constants.Name.RETURN_KEY_TYPE:
                 setReturnKeyType(String.valueOf(param));
                 return true;
+            case Constants.Name.TINTCOLOR:
+                setCursorColor(param);
+                return true;
         }
         return super.setProperty(key, param);
     }
+
+    private void setCursorColor(Object param) {
+        String cursorColor = WXUtils.getString(param, null);
+        if (TextUtils.isEmpty(cursorColor)) return;
+        try {
+            EditText editText = getHostView();
+            Field cursorDrawableRes = TextView.class.getDeclaredField("mCursorDrawableRes");
+            cursorDrawableRes.setAccessible(true);
+            int drawableId = cursorDrawableRes.getInt(editText);
+            Field mEditor = TextView.class.getDeclaredField("mEditor");
+            mEditor.setAccessible(true);
+            Object editor = mEditor.get(editText);
+            Class<?> clazz = editor.getClass();
+            Field mCursorDrawable = clazz.getDeclaredField("mCursorDrawable");
+            mCursorDrawable.setAccessible(true);
+            Drawable[] drawables = new Drawable[1];
+            drawables[0] = editText.getContext().getResources().getDrawable(drawableId);
+            drawables[0].setColorFilter(ColorUtils.getColor(cursorColor), PorterDuff.Mode.SRC_IN);
+            mCursorDrawable.set(editor, drawables);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     @WXComponentProp(name = Constants.Name.RETURN_KEY_TYPE)
     public void setReturnKeyType(String type) {
