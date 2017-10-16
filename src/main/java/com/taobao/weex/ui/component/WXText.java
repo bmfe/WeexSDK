@@ -170,6 +170,7 @@ import android.text.Layout;
 import android.util.Log;
 import android.view.ViewGroup;
 
+import com.taobao.weex.WXEnvironment;
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.annotation.Component;
 import com.taobao.weex.common.Constants;
@@ -178,6 +179,9 @@ import com.taobao.weex.dom.WXDomObject;
 import com.taobao.weex.dom.WXStyle;
 import com.taobao.weex.ui.ComponentCreator;
 import com.taobao.weex.ui.view.WXTextView;
+import com.taobao.weex.utils.FontDO;
+import com.taobao.weex.utils.TypefaceUtil;
+import com.taobao.weex.utils.WXLogUtils;
 
 import java.lang.reflect.InvocationTargetException;
 
@@ -191,12 +195,15 @@ public class WXText extends WXComponent<WXTextView> {
      * The default text size
      **/
     public static final int sDEFAULT_SIZE = 32;
+    private BroadcastReceiver mTypefaceObserver;
+    private String mFontFamily;
     private DefaultBroadcastReceiver mReceiver;
     private Layout mCurrentLayout;
     private String mCurrentFontSize = "NORM";
     private String mChangeFontSize;
     private float mCurrentEnlarge;
     private float mCurrentScale = 1;
+
 
     public static class Creator implements ComponentCreator {
 
@@ -354,15 +361,58 @@ public class WXText extends WXComponent<WXTextView> {
             case Constants.Name.FONT_STYLE:
             case Constants.Name.COLOR:
             case Constants.Name.TEXT_DECORATION:
-            case Constants.Name.FONT_FAMILY:
             case Constants.Name.TEXT_ALIGN:
             case Constants.Name.TEXT_OVERFLOW:
             case Constants.Name.LINE_HEIGHT:
             case Constants.Name.VALUE:
                 return true;
+            case Constants.Name.FONT_FAMILY:
+                if (param != null) {
+                    registerTypefaceObserver(param.toString());
+                }
+                return true;
+
             default:
                 return super.setProperty(key, param);
         }
+    }
+
+
+    private void registerTypefaceObserver(String desiredFontFamily) {
+        if (WXEnvironment.getApplication() == null) {
+            WXLogUtils.w("WXText", "ApplicationContent is null on register typeface observer");
+            return;
+        }
+        mFontFamily = desiredFontFamily;
+        if (mTypefaceObserver != null) {
+            return;
+        }
+
+        mTypefaceObserver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String fontFamily = intent.getStringExtra("fontFamily");
+                if (!mFontFamily.equals(fontFamily)) {
+                    return;
+                }
+
+                FontDO fontDO = TypefaceUtil.getFontDO(fontFamily);
+                if (fontDO != null && fontDO.getTypeface() != null && getHostView() != null) {
+                    WXTextView hostView = getHostView();
+                    Layout layout = hostView.getTextLayout();
+                    if (layout != null) {
+                        layout.getPaint().setTypeface(fontDO.getTypeface());
+                        WXLogUtils.d("WXText", "Apply font family " + fontFamily + " to paint");
+                    } else {
+                        WXLogUtils.w("WXText", "Layout not created");
+                    }
+                    hostView.invalidate();
+                }
+                WXLogUtils.d("WXText", "Font family " + fontFamily + " is available");
+            }
+        };
+
+        LocalBroadcastManager.getInstance(WXEnvironment.getApplication()).registerReceiver(mTypefaceObserver, new IntentFilter(TypefaceUtil.ACTION_TYPE_FACE_AVAILABLE));
     }
 
     /**

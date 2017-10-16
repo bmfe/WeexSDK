@@ -276,6 +276,26 @@ public class WXImageView extends ImageView implements WXGestureObservable,
      * ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝添加方法＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
      **/
 
+    public Drawable getRoundDrawable(Bitmap bitmap) {
+        if (bitmap == null) return null;
+        ViewGroup.LayoutParams layoutParams = getLayoutParams();
+        if (layoutParams == null) return null;
+        Drawable wrapDrawable = ImageDrawable.createImageDrawable(new BitmapDrawable
+                        (getResources(), bitmap),
+                getScaleType(), borderRadius,
+                layoutParams.width - getPaddingLeft() - getPaddingRight(),
+                layoutParams.height - getPaddingTop() - getPaddingBottom(),
+                false);
+        if (wrapDrawable instanceof ImageDrawable) {
+            ImageDrawable imageDrawable = (ImageDrawable) wrapDrawable;
+            if (!Arrays.equals(imageDrawable.getCornerRadii(), borderRadius)) {
+                imageDrawable.setCornerRadii(borderRadius);
+            }
+            return imageDrawable;
+        }
+        return null;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -383,10 +403,12 @@ public class WXImageView extends ImageView implements WXGestureObservable,
         invalidate();
     }
 
-    public void dissmissErrorBitmap() {
+    public void hideErrorBitmap() {
+        this.mErrorBitmap = null;
         mDrawError = false;
         invalidate();
     }
+
 
     /**＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝结束＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝**/
 }

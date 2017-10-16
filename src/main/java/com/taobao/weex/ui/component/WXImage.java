@@ -185,6 +185,10 @@ public class WXImage extends WXComponent<ImageView> {
 
   @WXComponentProp(name = Constants.Name.SRC)
   public void setSrc(String src) {
+    if (TextUtils.isEmpty(src)) {
+      src = "https://fe.benmu-health.com";
+    }
+
     if (src == null) {
       return;
     }
