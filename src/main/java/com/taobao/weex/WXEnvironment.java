@@ -27,6 +27,7 @@ import android.os.Environment;
 import android.telephony.TelephonyManager;
 
 import com.taobao.weappplus_sdk.BuildConfig;
+import com.taobao.weex.bridge.WXParams;
 import com.taobao.weex.common.WXConfig;
 import com.taobao.weex.utils.LogLevel;
 import com.taobao.weex.utils.WXLogUtils;
@@ -94,6 +95,7 @@ public class WXEnvironment {
   public static boolean sDynamicMode = false;
   public static String sDynamicUrl = "";
 
+  public static WXParams mEnvParams;
   /**
    * Fetch system information.
    * @return map contains system information.
