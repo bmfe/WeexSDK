@@ -170,6 +170,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -189,6 +190,8 @@ public class WXImageView extends ImageView implements WXGestureObservable,
     private WXGesture wxGesture;
     private float[] borderRadius;
     private boolean gif;
+    private String mCurrentUrl;
+
 
     public WXImageView(Context context) {
         super(context);
@@ -276,6 +279,14 @@ public class WXImageView extends ImageView implements WXGestureObservable,
      * ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝添加方法＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
      **/
 
+    public void setCurrentUrl(String url) {
+        this.mCurrentUrl = url;
+    }
+
+    public String getCurrentUrl() {
+        return mCurrentUrl;
+    }
+
     public Drawable getRoundDrawable(Bitmap bitmap) {
         if (bitmap == null) return null;
         ViewGroup.LayoutParams layoutParams = getLayoutParams();
@@ -335,7 +346,7 @@ public class WXImageView extends ImageView implements WXGestureObservable,
     /**
      * 展示菊花的方法
      */
-    public void showLoading(int width,int height) {
+    public void showLoading(int width, int height) {
         mWidth = width;
         mHeight = height;
         mEnsrueLength = Math.min(mWidth, mHeight);
