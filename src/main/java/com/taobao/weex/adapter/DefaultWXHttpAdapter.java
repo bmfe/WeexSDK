@@ -101,22 +101,6 @@ public class DefaultWXHttpAdapter implements IWXHttpAdapter {
         });
     }
 
-    @Override
-    public Typeface loadLocalFont(FontDO fontDO) {
-        return null;
-    }
-
-    @Override
-    public boolean isInterceptor() {
-        return false;
-    }
-
-    @Override
-    public String getIconDownloadUrl() {
-        return null;
-    }
-
-
     /**
      * Opens an {@link HttpURLConnection} with parameters.
      *

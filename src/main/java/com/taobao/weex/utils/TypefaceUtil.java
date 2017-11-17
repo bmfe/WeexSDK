@@ -31,6 +31,7 @@ import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.WXSDKManager;
 import com.taobao.weex.adapter.DefaultWXHttpAdapter;
 import com.taobao.weex.adapter.IWXHttpAdapter;
+import com.taobao.weex.adapter.IWXTypefaceAdapter;
 import com.taobao.weex.common.WXRequest;
 import com.taobao.weex.common.WXResponse;
 import com.taobao.weex.dom.WXStyle;
@@ -39,6 +40,8 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static android.R.attr.typeface;
 
 /**
  * Created by sospartan on 7/13/16.
@@ -127,17 +130,8 @@ public class TypefaceUtil {
                 Uri uri = Uri.parse(fontDo.getUrl());
                 loadFromAsset(fontDo, uri.getPath().substring(1));//exclude slash
             } else if (fontDo.getType() == FontDO.TYPE_NETWORK) {
-                final String url = fontDo.getUrl();
-                final String fontFamily = fontDo.getFontFamilyName();
-                final String fileName = url.replace('/', '_').replace(':', '_');
-                File dir = new File(getFontCacheDir());
-                if (!dir.exists()) {
-                    dir.mkdirs();
-                }
-                final String fullPath = dir.getAbsolutePath() + File.separator + fileName;
-                if (!loadLocalFontFile(fullPath, fontFamily)) {
-                    downloadFontByNetwork(url, fullPath, fontFamily);
-                }
+                //本木自定义加载方式
+                carryTypeNetwork(fontDo);
             } else if (fontDo.getType() == FontDO.TYPE_FILE) {
                 boolean result = loadLocalFontFile(fontDo.getUrl(), fontDo.getFontFamilyName());
                 if (!result) {
@@ -152,47 +146,79 @@ public class TypefaceUtil {
         }
     }
 
+    private static void carryTypeNetwork(FontDO fontDO) {
+        IWXTypefaceAdapter adapter = WXSDKManager.getInstance().getIWXTypefaceAdapter();
+        String url = fontDO.getUrl();
+        String fontFamily = fontDO.getFontFamilyName();
+        //没有自定义适配器或关闭拦截器 按原有逻辑
+        if (adapter == null || !adapter.isInterceptor()) {
+            final String fileName = url.replace('/', '_').replace(':', '_');
+            File dir = new File(getFontCacheDir());
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            final String fullPath = dir.getAbsolutePath() + File.separator + fileName;
+            if (!loadLocalFontFile(fullPath, fontFamily)) {
+                downloadFontByNetwork(url, fullPath, fontFamily);
+            }
+            return;
+        }
+        //设置了自定义适配器且拦截器开启
+        File iconDir = adapter.getTypefaceDir();
+        String fileName = url.replace('/', '_').replace(':', '_');
+        File requireIcon = new File(iconDir, fileName);
+        if (requireIcon.exists()) {
+            //请求的有直接加载
+            loadLocalFontFile(requireIcon.getAbsolutePath(), fontFamily);
+        } else {
+            //请求的本地没有
+            File insideIcon = new File(iconDir, "iconfont.ttf");
+            if (insideIcon.exists()) {
+                //内置icon存在  先加载本地内置icon
+                loadLocalFontFile(insideIcon.getAbsolutePath(), fontFamily);
+            }
+            //接着去下载这个icon
+            if (!iconDir.exists()) {
+                iconDir.mkdirs();
+            }
+            String downloadPath = new File(iconDir, fileName).getAbsolutePath();
+            downloadFontByNetwork(url, downloadPath, fontFamily);
+        }
+
+    }
+
     private static void localBMLocalIcon(FontDO fontDo) {
         //得到当前httpAdapter
-        IWXHttpAdapter httpAdapter = WXSDKManager.getInstance().getIWXHttpAdapter();
-        if (httpAdapter == null) {
+        IWXTypefaceAdapter typefaceAdapter = WXSDKManager.getInstance().getIWXTypefaceAdapter();
+        if (typefaceAdapter == null) {
             Log.e("localBMLocalIcon", "未找到支持bmLocal的adapter");
             return;
         }
 
-        if (httpAdapter.isInterceptor()) {
-            Typeface typeface = httpAdapter.loadLocalFont(fontDo);
-            if (typeface != null) {
-                String fontFamily = fontDo.getFontFamilyName();
-                FontDO fontDoCache = sCacheMap.get(fontFamily);
-                if (fontDoCache != null) {
-                    fontDoCache.setState(FontDO.STATE_SUCCESS);
-                    fontDoCache.setTypeface(typeface);
-                    if (WXEnvironment.isApkDebugable()) {
-                        WXLogUtils.d(TAG, "load local font file success");
-                    }
-
-                    Intent intent = new Intent(ACTION_TYPE_FACE_AVAILABLE);
-                    intent.putExtra("fontFamily", fontFamily);
-                    LocalBroadcastManager.getInstance(WXEnvironment.getApplication()).sendBroadcast
-                            (intent);
-                }
-            } else {
-                WXLogUtils.e(TAG, "load local font file failed, can't create font.");
-            }
+        if (typefaceAdapter.isInterceptor()) {
+            //拦截器开启
+            File iconDir = typefaceAdapter.getTypefaceDir();
+            if (!iconDir.exists()) return;
+            String url = fontDo.getUrl();
+            String fontFamilyName = fontDo.getFontFamilyName();
+            if (TextUtils.isEmpty(fontFamilyName) || TextUtils.isEmpty(url)) return;
+            Uri parse = Uri.parse(url);
+            File localIcon = new File(iconDir, parse.getPath());
+            if (!localIcon.exists()) return;
+            loadLocalFontFile(localIcon.getAbsolutePath(), fontFamilyName);
         } else {
             //自己去本地服务上下载
-            String iconDownloadUrl = httpAdapter.getIconDownloadUrl()+"/fe/dist";
+            String iconDownloadUrl = typefaceAdapter.getJsServer() + "/dist";
             if (TextUtils.isEmpty(iconDownloadUrl)) return;
             Uri parse = Uri.parse(fontDo.getUrl());
-            String fetchUrl = iconDownloadUrl + "/" + parse.getHost()  + parse.getPath();
+            String fetchUrl = iconDownloadUrl + "/" + parse.getHost() + parse.getPath();
             final String fileName = fetchUrl.replace('/', '_').replace(':', '_');
             File dir = new File(getFontCacheDir());
             if (!dir.exists()) {
                 dir.mkdirs();
             }
             final String fullPath = dir.getAbsolutePath() + File.separator + fileName;
-            downloadFontByNetwork(fetchUrl,fullPath,fontDo.getFontFamilyName());
+            downloadFontByNetwork(fetchUrl, fullPath, fontDo.getFontFamilyName());
         }
 
     }

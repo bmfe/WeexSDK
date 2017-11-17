@@ -24,6 +24,7 @@ import com.taobao.weex.adapter.IWXHttpAdapter;
 import com.taobao.weex.adapter.IWXImgLoaderAdapter;
 import com.taobao.weex.adapter.IWXJSExceptionAdapter;
 import com.taobao.weex.adapter.IWXSoLoaderAdapter;
+import com.taobao.weex.adapter.IWXTypefaceAdapter;
 import com.taobao.weex.adapter.IWXUserTrackAdapter;
 import com.taobao.weex.adapter.URIAdapter;
 import com.taobao.weex.appfram.storage.IWXStorageAdapter;
@@ -45,6 +46,9 @@ public class InitConfig {
   private IWXJSExceptionAdapter mJSExceptionAdapter;
   private String framework;
 
+  //本木自定义adapter
+  private IWXTypefaceAdapter mTypefaceAdapter;
+
   public IWXHttpAdapter getHttpAdapter() {
     return httpAdapter;
   }
@@ -61,7 +65,7 @@ public class InitConfig {
     return utAdapter;
   }
 
-  public IWXDebugAdapter getDebugAdapter(){
+  public IWXDebugAdapter getDebugAdapter() {
     return debugAdapter;
   }
 
@@ -89,10 +93,14 @@ public class InitConfig {
     return mJSExceptionAdapter;
   }
 
+  public IWXTypefaceAdapter getTypefaceAdapter() {
+    return mTypefaceAdapter;
+  }
+
   private InitConfig() {
   }
 
-  public static class Builder{
+  public static class Builder {
     IWXHttpAdapter httpAdapter;
     IWXImgLoaderAdapter imgAdapter;
     IDrawableLoader drawableLoader;
@@ -104,7 +112,11 @@ public class InitConfig {
     IWXJSExceptionAdapter mJSExceptionAdapter;
     String framework;
     IWebSocketAdapterFactory webSocketAdapterFactory;
-    public Builder(){
+
+    //本木自定义adapter
+    private IWXTypefaceAdapter typefaceAdapter;
+
+    public Builder() {
 
     }
 
@@ -118,8 +130,8 @@ public class InitConfig {
       return this;
     }
 
-    public Builder setDrawableLoader(IDrawableLoader drawableLoader){
-      this.drawableLoader=drawableLoader;
+    public Builder setDrawableLoader(IDrawableLoader drawableLoader) {
+      this.drawableLoader = drawableLoader;
       return this;
     }
 
@@ -128,8 +140,8 @@ public class InitConfig {
       return this;
     }
 
-    public Builder setDebugAdapter(IWXDebugAdapter debugAdapter){
-      this.debugAdapter=debugAdapter;
+    public Builder setDebugAdapter(IWXDebugAdapter debugAdapter) {
+      this.debugAdapter = debugAdapter;
       return this;
     }
 
@@ -153,8 +165,8 @@ public class InitConfig {
       return this;
     }
 
-    public Builder setFramework(String framework){
-      this.framework=framework;
+    public Builder setFramework(String framework) {
+      this.framework = framework;
       return this;
     }
 
@@ -163,19 +175,25 @@ public class InitConfig {
       return this;
     }
 
-    public InitConfig build(){
-      InitConfig config =  new InitConfig();
+    public Builder setTypefaceAdapter(IWXTypefaceAdapter adapter) {
+      this.typefaceAdapter = adapter;
+      return this;
+    }
+
+    public InitConfig build() {
+      InitConfig config = new InitConfig();
       config.httpAdapter = this.httpAdapter;
       config.imgAdapter = this.imgAdapter;
       config.drawableLoader = this.drawableLoader;
       config.utAdapter = this.utAdapter;
-      config.debugAdapter=this.debugAdapter;
+      config.debugAdapter = this.debugAdapter;
       config.storageAdapter = this.storageAdapter;
-      config.soLoader=this.soLoader;
-      config.framework=this.framework;
+      config.soLoader = this.soLoader;
+      config.framework = this.framework;
       config.mURIAdapter = this.mURIAdapter;
       config.webSocketAdapterFactory = this.webSocketAdapterFactory;
-      config.mJSExceptionAdapter=this.mJSExceptionAdapter;
+      config.mJSExceptionAdapter = this.mJSExceptionAdapter;
+      config.mTypefaceAdapter = this.typefaceAdapter;
       return config;
     }
   }

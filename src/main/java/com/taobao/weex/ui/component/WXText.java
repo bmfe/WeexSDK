@@ -258,6 +258,15 @@ public class WXText extends WXComponent<WXTextView> {
     }
 
     private void updateFontSize() {
+
+        if (getDomObject() != null && getDomObject().getStyles().get(Constants.Name.FONT_SIZE) ==
+                null) {
+            WXStyle s = getDomObject().getStyles();
+            s.put(Constants.Name.FONT_SIZE, 30);
+            updateStyle(s);
+            return;
+        }
+
         if (mChangeFontSize == null) {
             return;
         }

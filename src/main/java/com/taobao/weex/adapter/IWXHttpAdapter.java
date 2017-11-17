@@ -66,10 +66,4 @@ public interface IWXHttpAdapter {
         void onHttpFinish(WXResponse response);
     }
 
-    Typeface loadLocalFont(FontDO fontDO);
-
-
-    boolean isInterceptor();
-
-    String getIconDownloadUrl();
 }
