@@ -31,7 +31,7 @@ import com.taobao.weex.utils.TypefaceUtil;
 /**
  * Created by sospartan on 02/03/2017.
  */
-public final class AddRuleAction implements DOMAction {
+final class AddRuleAction implements DOMAction {
   private final String mType;
   private final JSONObject mData;
 

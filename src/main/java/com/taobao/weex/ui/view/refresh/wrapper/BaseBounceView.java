@@ -97,7 +97,7 @@ public abstract class BaseBounceView<T extends View> extends FrameLayout {
         mInnerView = setInnerView(context);
         if (mInnerView == null)
             return null;
-        swipeLayout.addView(mInnerView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        swipeLayout.addTargetView(mInnerView);
         addView(swipeLayout, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
         return swipeLayout;
     }
@@ -169,13 +169,6 @@ public abstract class BaseBounceView<T extends View> extends FrameLayout {
         }
     }
 
-
-    public void setCustomHeaderView(View view){
-        setRefreshEnable(true);
-        swipeLayout.setRefreshHeight(WXViewUtils.dip2px(40));
-        swipeLayout.getHeaderView().setRefreshView(view);
-    }
-
     public void removeFooterView(WXComponent loading){
         setLoadmoreEnable(false);
         if(swipeLayout!=null){
@@ -234,4 +227,12 @@ public abstract class BaseBounceView<T extends View> extends FrameLayout {
     public abstract void onRefreshingComplete();
 
     public abstract void onLoadmoreComplete();
+
+    // 自定义
+     public void setCustomHeaderView(View view){
+        setRefreshEnable(true);
+        swipeLayout.setRefreshHeight(WXViewUtils.dip2px(40));
+        swipeLayout.getHeaderView().setRefreshView(view);
+    }
+    // 自定义
 }

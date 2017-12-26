@@ -29,9 +29,11 @@ import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.WXSDKManager;
 import com.taobao.weex.bridge.WXValidateProcessor;
 import com.taobao.weex.common.Constants;
+import com.taobao.weex.common.Constants.Name;
 import com.taobao.weex.dom.flex.CSSLayoutContext;
 import com.taobao.weex.dom.flex.CSSNode;
 import com.taobao.weex.dom.flex.Spacing;
+import com.taobao.weex.dom.transition.WXTransition;
 import com.taobao.weex.ui.component.WXBasicComponentType;
 import com.taobao.weex.utils.WXLogUtils;
 import com.taobao.weex.utils.WXViewUtils;
@@ -41,6 +43,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+
 
 /**
  * WXDomObject contains all the info about the given node, including style, attribute and event.
@@ -54,14 +58,24 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
   public static final String TYPE = "type";
   public static final String TAG = WXDomObject.class.getSimpleName();
   public static final String ROOT = "_root";
-  public static final String TRANSFORM = "transform";
-  public static final String TRANSFORM_ORIGIN = "transformOrigin";
+
+  /**
+   * Use {@link Name#TRANSFORM} instead.
+   */
+  @Deprecated
+  public static final String TRANSFORM = Name.TRANSFORM;
+
+  /**
+   * Use {@link Name#TRANSFORM_ORIGIN} instead.
+   */
+  @Deprecated
+  public static final String TRANSFORM_ORIGIN = Name.TRANSFORM_ORIGIN;
   static final WXDomObject DESTROYED = new WXDomObject();
   static{
     DESTROYED.mRef = "_destroyed";
   }
   private AtomicBoolean sDestroy = new AtomicBoolean();
-
+  
   private int mViewPortWidth =750;
 
   private DomContext mDomContext;
@@ -76,6 +90,12 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
 
   /** package **/ WXEvent mEvents;
 
+  private  WXTransition transition;;
+
+
+
+
+
   private List<WXDomObject> mDomChildren;
 
   /** Do not access this field directly. This field will be removed soon. **/
@@ -86,7 +106,13 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
 
   private boolean mYoung = false;
 
+  public long mDomThreadNanos;
+  public long mDomThreadTimestamp;
+
+  private  boolean cloneThis = false;
+
   public void traverseTree(Consumer...consumers){
+    long startNanos = System.nanoTime();
     if (consumers == null) {
       return;
     }
@@ -101,6 +127,7 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
       child = getChild(i);
       child.traverseTree(consumers);
     }
+    mDomThreadNanos += (System.nanoTime() - startNanos);
   }
 
 
@@ -115,6 +142,7 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
   public String getRef(){
     return mRef;
   }
+
 
   public String getType(){
     return mType;
@@ -140,6 +168,10 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
     }
 
     return mEvents;
+  }
+
+  public WXTransition getTransition() {
+    return transition;
   }
 
   public @NonNull DomContext getDomContext() {
@@ -197,6 +229,7 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
       WXStyle styles = new WXStyle();
       styles.putAll((JSONObject) style,false);
       this.mStyles = styles;
+      this.transition = WXTransition.fromMap(styles, this);
     }
     Object attr = map.get("attr");
     if (attr != null && attr instanceof JSONObject) {
@@ -206,16 +239,20 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
     }
     Object event = map.get("event");
     if (event != null && event instanceof JSONArray) {
-      WXEvent events = new WXEvent();
-      JSONArray eventArray = (JSONArray) event;
-      int count = eventArray.size();
-      for (int i = 0; i < count; ++i) {
-        events.add(eventArray.getString(i));
-      }
-      this.mEvents = events;
+        WXEvent events = new WXEvent();
+        JSONArray eventArray = (JSONArray) event;
+        int count = eventArray.size();
+        for (int i = 0; i < count; i++) {
+            Object value = eventArray.get(i);
+            events.addEvent(value);
+        }
+        this.mEvents = events;
     }
 
   }
+
+
+
 
 
   /**
@@ -275,6 +312,7 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
     }
   }
 
+
   public boolean isFixed() {
     return mStyles == null ? false : mStyles.isFixed();
   }
@@ -306,9 +344,7 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
 
     int index = mDomChildren.indexOf(child);
     if (index == -1) {
-      if (WXEnvironment.isApkDebugable()) {
         WXLogUtils.e("[WXDomObject] remove function error");
-      }
       return;
     }
     mDomChildren.remove(index).parent = null;
@@ -412,6 +448,9 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
       mAttributes = new WXAttr();
     }
     mAttributes.putAll(attrs);
+    if(hasNewLayout()){
+       markUpdateSeen();
+    }
     super.dirty();
   }
 
@@ -423,18 +462,38 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
     if (styles == null || styles.isEmpty()) {
       return;
     }
+    if(transition != null){
+      if(transition.hasTransitionProperty(styles)){
+        transition.startTransition(styles);
+      }
+    }
     if (mStyles == null) {
       mStyles = new WXStyle();
     }
     mStyles.putAll(styles,byPesudo);
+    if(transition == null){
+      this.transition = WXTransition.fromMap(mStyles, this);
+    }
     super.dirty();
   }
 
-  /** package **/ void applyStyleToNode() {
+
+  public void applyStyle(Map<String, Object> styles){
+     applyStyleToNode(styles);
+  }
+
+  void applyStyleToNode() {
+    applyStyleToNode(getStyles());
+  }
+
+  /** package **/ void applyStyleToNode(Map<String, Object> updates) {
+    if(updates.size() == 0){
+      return;
+    }
     WXStyle stylesMap = getStyles();
     int vp = getViewPortWidth();
     if (!stylesMap.isEmpty()) {
-      for(Map.Entry<String,Object> item:stylesMap.entrySet()) {
+      for(Map.Entry<String,Object> item: updates.entrySet()) {
         switch (item.getKey()) {
           case Constants.Name.ALIGN_ITEMS:
             setAlignItems(stylesMap.getAlignItems());
@@ -564,6 +623,9 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
     if (sDestroy.get()) {
       return null;
     }
+    if(cloneThis){
+      return  this;
+    }
     WXDomObject dom = null;
     try {
       dom = WXDomObjectFactory.newInstance(mType);
@@ -627,7 +689,13 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
    * @param json the original JSONObject
    * @return Dom Object corresponding to the JSONObject.
    */
-  public static  @Nullable WXDomObject parse(JSONObject json, WXSDKInstance wxsdkInstance){
+  public static  @Nullable WXDomObject parse(JSONObject json, WXSDKInstance wxsdkInstance) {
+      return parse(json, wxsdkInstance, null);
+  }
+
+  public static  @Nullable WXDomObject parse(JSONObject json, WXSDKInstance wxsdkInstance, WXDomObject parentDomObject){
+      long startNanos = System.nanoTime();
+      long timestamp = System.currentTimeMillis();
       if (json == null || json.size() <= 0) {
         return null;
       }
@@ -639,15 +707,17 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
                 .getValidateProcessor();
         if (processor != null) {
           WXValidateProcessor.WXComponentValidateResult result = processor
-                  .onComponentValidate(wxsdkInstance, type);
+                  .onComponentValidate(wxsdkInstance, type, parentDomObject);
           if (result != null && !result.isSuccess) {
             type = TextUtils.isEmpty(result.replacedComponent) ? WXBasicComponentType.DIV
                     : result.replacedComponent;
             json.put(TYPE, type);
-            if(WXEnvironment.isApkDebugable()&&result.validateInfo!=null){
-              String tag = "[WXDomObject]onComponentValidate failure. >>> "+result.validateInfo.toJSONString();
+            if (result.validateInfo != null) {
+              String tag = "[WXDomObject]onComponentValidate failure. >>> " + result.validateInfo.toJSONString();
               WXLogUtils.e(tag);
             }
+          } else if (result == null){
+            return null;
           }
         }
       }
@@ -661,20 +731,31 @@ public class WXDomObject extends CSSNode implements Cloneable,ImmutableDomObject
       }
       domObject.parseFromJson(json);
       domObject.mDomContext = wxsdkInstance;
+      domObject.parent = parentDomObject;
 
       Object children = json.get(CHILDREN);
       if (children != null && children instanceof JSONArray) {
         JSONArray childrenArray = (JSONArray) children;
         int count = childrenArray.size();
         for (int i = 0; i < count; ++i) {
-          domObject.add(parse(childrenArray.getJSONObject(i),wxsdkInstance),-1);
+          domObject.add(parse(childrenArray.getJSONObject(i),wxsdkInstance, domObject),-1);
         }
       }
 
+      domObject.mDomThreadNanos = System.nanoTime() - startNanos;
+      domObject.mDomThreadTimestamp = timestamp;
       return domObject;
   }
 
   public interface Consumer{
     void accept(WXDomObject dom);
+  }
+
+  public boolean isCloneThis() {
+    return cloneThis;
+  }
+
+  public void setCloneThis(boolean cloneThis) {
+    this.cloneThis = cloneThis;
   }
 }

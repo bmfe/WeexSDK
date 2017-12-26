@@ -38,6 +38,15 @@ public interface IWXBridge extends IWXObject {
    */
   int initFramework(String framework, WXParams params);
 
+
+  /**
+   * init Weex
+   *
+   * @param framework assets/main.js
+   * @return
+   */
+  int initFrameworkEnv(String framework, WXParams params, String cacheDir, boolean pieSupport);
+
   /**
    * execute javascript function
    */
@@ -85,5 +94,7 @@ public interface IWXBridge extends IWXObject {
   int callAddEvent(String instanceId, String ref, String event, String callback);
 
   int callRemoveEvent(String instanceId, String ref, String event, String callback);
+
+  void reportServerCrash(String instanceId, String crashFile);
 
 }

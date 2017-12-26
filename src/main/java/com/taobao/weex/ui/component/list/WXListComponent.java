@@ -19,6 +19,7 @@
 package com.taobao.weex.ui.component.list;
 
 import android.content.Context;
+import android.util.Pair;
 
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.annotation.Component;
@@ -39,7 +40,7 @@ import com.taobao.weex.ui.view.listview.adapter.ListBaseViewHolder;
 import com.taobao.weex.ui.view.refresh.bmrefresh.BMBaseRefresh;
 import com.taobao.weex.ui.view.refresh.bmrefresh.BMLoadingRefresh;
 import com.taobao.weex.ui.view.refresh.wrapper.BounceRecyclerView;
-import com.taobao.weex.utils.WXLogUtils;
+import com.taobao.weex.utils.WXUtils;
 
 import java.util.Map;
 
@@ -54,10 +55,9 @@ import java.util.Map;
 
 public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
   private String TAG = "WXListComponent";
-  private WXRecyclerDomObject mDomObject;
+  private WXRecyclerDomObject mRecyclerDom;
   private float mPaddingLeft;
   private float mPaddingRight;
-  private BMBaseRefresh mBMRefresh;
 
   @Deprecated
   public WXListComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, String instanceId, boolean isLazy) {
@@ -68,13 +68,13 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
   public WXListComponent(WXSDKInstance instance, WXDomObject node, WXVContainer parent, boolean lazy) {
     super(instance, node, parent);
     if (node != null && node instanceof WXRecyclerDomObject) {
-      mDomObject = (WXRecyclerDomObject) node;
-      mDomObject.preCalculateCellWidth();
+      mRecyclerDom = (WXRecyclerDomObject) node;
+      mRecyclerDom.preCalculateCellWidth();
 
       if(WXBasicComponentType.WATERFALL.equals(node.getType())){
         mLayoutType = WXRecyclerView.TYPE_STAGGERED_GRID_LAYOUT;
       }else{
-        mLayoutType = mDomObject.getLayoutType();
+        mLayoutType = mRecyclerDom.getLayoutType();
       }
       updateRecyclerAttr();
 
@@ -83,75 +83,91 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
 
   @Override
   protected BounceRecyclerView generateListView(Context context, int orientation) {
-
-    return new BounceRecyclerView(context,mLayoutType,mColumnCount,mColumnGap,orientation);
+    BounceRecyclerView bounceRecyclerView = new BounceRecyclerView(context,mLayoutType,mColumnCount,mColumnGap,orientation);
+    if(bounceRecyclerView.getSwipeLayout()  != null){
+      if(WXUtils.getBoolean(getDomObject().getAttrs().get("nestedScrollingEnabled"), false)) {
+          bounceRecyclerView.getSwipeLayout().setNestedScrollingEnabled(true);
+      }
+    }
+    return  bounceRecyclerView;
   }
 
   @Override
-  public void addChild(WXComponent child, int index) {
+  public void addChild(final WXComponent child, int index) {
     super.addChild(child, index);
     if (child == null || index < -1) {
       return;
     }
-    setRefreshOrLoading(child);
-       // Synchronize DomObject's attr to Component and Native View
-    if(mDomObject != null && getHostView() != null && (mColumnWidth != mDomObject.getColumnWidth() ||
-            mColumnCount != mDomObject.getColumnCount() ||
-            mColumnGap != mDomObject.getColumnGap())) {
-      updateRecyclerAttr();
-      getHostView().getInnerView().initView(getContext(), mLayoutType,mColumnCount,mColumnGap,getOrientation());
-    }
-    
-    addCustomRefresh();
-  }
 
-
-  /**
-   * Setting refresh view and loading view
-   *
-   * @param child the refresh_view or loading_view
-   */
-  private boolean setRefreshOrLoading(final WXComponent child) {
-
-    if (getHostView() == null) {
-      WXLogUtils.e(TAG, "setRefreshOrLoading: HostView == null !!!!!! check list attr has append =tree");
-      return true;
-    }
-    if (child instanceof WXRefresh) {
-      getHostView().setOnRefreshListener((WXRefresh) child);
-      getHostView().postDelayed(new Runnable() {
+    if (child instanceof WXRefresh && getHostView() != null) {
+        getHostView().setOnRefreshListener((WXRefresh) child);
+        getHostView().postDelayed(new Runnable() {
         @Override
         public void run() {
           getHostView().setHeaderView(child);
         }
       }, 100);
-      return true;
     }
 
-    if (child instanceof WXLoading) {
-      getHostView().setOnLoadingListener((WXLoading) child);
-      getHostView().postDelayed(new Runnable() {
+    if (child instanceof WXLoading && getHostView() != null) {
+        getHostView().setOnLoadingListener((WXLoading) child);
+        getHostView().postDelayed(new Runnable() {
         @Override
         public void run() {
           getHostView().setFooterView(child);
         }
       }, 100);
-      return true;
     }
-    return false;
+
+    // Synchronize DomObject's attr to Component and Native View
+    if(mRecyclerDom != null && getHostView() != null && (mColumnWidth != mRecyclerDom.getColumnWidth() ||
+            mColumnCount != mRecyclerDom.getColumnCount() ||
+            mColumnGap != mRecyclerDom.getColumnGap())) {
+      updateRecyclerAttr();
+      getHostView().getInnerView().initView(getContext(), mLayoutType,mColumnCount,mColumnGap,getOrientation());
+    }
+
+     // 自定义
+     addCustomRefresh();
   }
 
+  private BMBaseRefresh mBMRefresh;
+
+   @Override
+  public void addCustomRefresh() {
+    if (!mAddCustomRefresh || mBMRefresh != null) return;
+    mBMRefresh = new BMLoadingRefresh(getContext(), this);
+    getHostView().setOnRefreshListener(mBMRefresh);
+    getHostView().postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        getHostView().setCustomHeaderView(mBMRefresh);
+      }
+    }, 100);
+  }
+
+  @JSMethod
+  public void refreshEnd() {
+    if (mBMRefresh != null) {
+      mBMRefresh.onRefreshComplete();
+    }
+  }
+     // 自定义
+
+
   private void updateRecyclerAttr(){
-    mColumnCount = mDomObject.getColumnCount();
-    mColumnGap = mDomObject.getColumnGap();
-    mColumnWidth = mDomObject.getColumnWidth();
-    mPaddingLeft =mDomObject.getPadding().get(Spacing.LEFT);
-    mPaddingRight =mDomObject.getPadding().get(Spacing.RIGHT);
+    if(mRecyclerDom != null) {
+      mColumnCount = mRecyclerDom.getColumnCount();
+      mColumnGap = mRecyclerDom.getColumnGap();
+      mColumnWidth = mRecyclerDom.getColumnWidth();
+      mPaddingLeft = mRecyclerDom.getPadding().get(Spacing.LEFT);
+      mPaddingRight = mRecyclerDom.getPadding().get(Spacing.RIGHT);
+    }
   }
 
   @WXComponentProp(name = Constants.Name.COLUMN_WIDTH)
   public void setColumnWidth(int columnCount)  {
-    if(mDomObject.getColumnWidth() != mColumnWidth){
+    if(mRecyclerDom != null && mRecyclerDom.getColumnWidth() != mColumnWidth){
       markComponentUsable();
       updateRecyclerAttr();
       WXRecyclerView wxRecyclerView = getHostView().getInnerView();
@@ -161,7 +177,7 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
 
   @WXComponentProp(name = Constants.Name.COLUMN_COUNT)
   public void setColumnCount(int columnCount){
-    if(mDomObject.getColumnCount() != mColumnCount){
+    if(mRecyclerDom != null && mRecyclerDom.getColumnCount() != mColumnCount){
       markComponentUsable();
       updateRecyclerAttr();
       WXRecyclerView wxRecyclerView = getHostView().getInnerView();
@@ -171,7 +187,7 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
 
   @WXComponentProp(name = Constants.Name.COLUMN_GAP)
   public void setColumnGap(float columnGap) throws InterruptedException {
-    if(mDomObject.getColumnGap() != mColumnGap) {
+    if(mRecyclerDom != null && mRecyclerDom.getColumnGap() != mColumnGap) {
       markComponentUsable();
       updateRecyclerAttr();
       WXRecyclerView wxRecyclerView = getHostView().getInnerView();
@@ -192,8 +208,8 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
             ||props.containsKey(Constants.Name.PADDING_LEFT)
             || props.containsKey(Constants.Name.PADDING_RIGHT)){
 
-      if(mPaddingLeft !=mDomObject.getPadding().get(Spacing.LEFT)
-              || mPaddingRight !=mDomObject.getPadding().get(Spacing.RIGHT)) {
+      if(mRecyclerDom != null && (mPaddingLeft != mRecyclerDom.getPadding().get(Spacing.LEFT)
+              || mPaddingRight != mRecyclerDom.getPadding().get(Spacing.RIGHT))) {
 
         markComponentUsable();
         updateRecyclerAttr();
@@ -206,70 +222,40 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
 
   @Override
   public void createChildViewAt(int index) {
-    int indexToCreate = index;
-    if (indexToCreate < 0) {
-      indexToCreate = childCount() - 1;
-      if (indexToCreate < 0) {
-        return;
+    Pair<WXComponent, Integer> ret = rearrangeIndexAndGetChild(index);
+    if(ret.first != null) {
+      final WXComponent child = getChild(ret.second);
+      if (child instanceof WXBaseRefresh) {
+        child.createView();
+        if (child instanceof WXRefresh) {
+          getHostView().setOnRefreshListener((WXRefresh) child);
+          getHostView().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+              getHostView().setHeaderView(child);
+            }
+          }, 100);
+        } else if (child instanceof WXLoading) {
+          getHostView().setOnLoadingListener((WXLoading) child);
+          getHostView().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+              getHostView().setFooterView(child);
+            }
+          }, 100);
+        }
+      } else {
+        super.createChildViewAt(ret.second);
       }
-    }
-    final WXComponent child = getChild(indexToCreate);
-    if (child instanceof WXBaseRefresh) {
-      child.createView();
-      if (child instanceof WXRefresh) {
-        getHostView().setOnRefreshListener((WXRefresh) child);
-        getHostView().postDelayed(new Runnable() {
-          @Override
-          public void run() {
-            getHostView().setHeaderView(child);
-          }
-        }, 100);
-      } else if (child instanceof WXLoading) {
-        getHostView().setOnLoadingListener((WXLoading) child);
-        getHostView().postDelayed(new Runnable() {
-          @Override
-          public void run() {
-            getHostView().setFooterView(child);
-          }
-        }, 100);
-      }
-    } else {
-      super.createChildViewAt(indexToCreate);
     }
   }
 
   public void remove(WXComponent child, boolean destroy) {
     super.remove(child, destroy);
-    removeFooterOrHeader(child);
-  }
-
-  private void removeFooterOrHeader(WXComponent child) {
     if (child instanceof WXLoading) {
       getHostView().removeFooterView(child);
     } else if (child instanceof WXRefresh) {
       getHostView().removeHeaderView(child);
     }
   }
-
-  @Override
-  public void addCustomRefresh() {
-    if (!mAddCustomRefresh || mBMRefresh != null) return;
-    mBMRefresh = new BMLoadingRefresh(getContext(), this);
-    getHostView().setOnRefreshListener(mBMRefresh);
-    getHostView().postDelayed(new Runnable() {
-      @Override
-      public void run() {
-        getHostView().setCustomHeaderView(mBMRefresh);
-      }
-    }, 100);
-  }
-
-  @JSMethod
-  public void refreshEnd() {
-    if (mBMRefresh != null && mBMRefresh.mCurrentState == BMBaseRefresh.STATE_REFRESHING) {
-      mBMRefresh.onRefreshComplete();
-    }
-  }
-
-
 }

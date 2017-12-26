@@ -21,12 +21,16 @@ package com.taobao.weex.dom;
 import android.graphics.Canvas;
 import android.graphics.Typeface;
 import android.os.Build;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.text.Editable;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.SpannedString;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.text.TextUtils;
@@ -42,6 +46,7 @@ import com.taobao.weex.dom.flex.FloatUtil;
 import com.taobao.weex.dom.flex.MeasureOutput;
 import com.taobao.weex.ui.component.WXText;
 import com.taobao.weex.ui.component.WXTextDecoration;
+import com.taobao.weex.utils.StaticLayoutProxy;
 import com.taobao.weex.utils.WXDomUtils;
 import com.taobao.weex.utils.WXLogUtils;
 import com.taobao.weex.utils.WXResourceUtils;
@@ -95,9 +100,16 @@ public class WXTextDomObject extends WXDomObject {
       if (CSSConstants.isUndefined(width)) {
         width = node.cssstyle.maxWidth;
       }
-      if(textDomObject.getTextWidth(textDomObject.mTextPaint,width,false)>0) {
-        textDomObject.layout = textDomObject.createLayout(width, false, null);
-        textDomObject.hasBeenMeasured = true;
+      boolean forceWidth = false;
+      if(width > 0){
+         if(node.getParent() != null && textDomObject.mAlignment == Layout.Alignment.ALIGN_CENTER){
+            forceWidth = FloatUtil.floatsEqual(width, node.getParent().getLayoutWidth());
+         }
+      }
+      textDomObject.hasBeenMeasured = true;
+      width = textDomObject.getTextWidth(textDomObject.mTextPaint,width, forceWidth);
+      if(width > 0 && textDomObject.mText != null) {
+        textDomObject.layout = textDomObject.createLayout(width, true, null);
         textDomObject.previousWidth = textDomObject.layout.getWidth();
         measureOutput.height = textDomObject.layout.getHeight();
         measureOutput.width = textDomObject.previousWidth;
@@ -161,6 +173,12 @@ public class WXTextDomObject extends WXDomObject {
     hasBeenMeasured = false;
     updateStyleAndText();
     spanned = createSpanned(mText);
+    if(hasNewLayout()){
+        if(WXEnvironment.isApkDebugable()) {
+          WXLogUtils.d("Previous csslayout was ignored! markLayoutSeen() never called");
+        }
+        markUpdateSeen();
+    }
     super.dirty();
     super.layoutBefore();
   }
@@ -179,8 +197,9 @@ public class WXTextDomObject extends WXDomObject {
     hasBeenMeasured = false;
     if (layout != null && !layout.equals(atomicReference.get()) &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-      //TODO Warm up, a profile should be used to see the improvement.
-      warmUpTextLayoutCache(layout);
+      if(Thread.currentThread() != Looper.getMainLooper().getThread()){
+          warmUpTextLayoutCache(layout);
+      }
     }
     swap();
     super.layoutAfter();
@@ -209,12 +228,15 @@ public class WXTextDomObject extends WXDomObject {
 
   @Override
   public WXTextDomObject clone() {
+    if(isCloneThis()){
+      return  this;
+    }
     WXTextDomObject dom = null;
     try {
       dom = new WXTextDomObject();
       copyFields(dom);
       dom.hasBeenMeasured = hasBeenMeasured;
-      dom.atomicReference = atomicReference;
+      dom.atomicReference = new AtomicReference<>(atomicReference.get());
     } catch (Exception e) {
       if (WXEnvironment.isApkDebugable()) {
         WXLogUtils.e("WXTextDomObject clone error: ", e);
@@ -233,8 +255,12 @@ public class WXTextDomObject extends WXDomObject {
     float contentWidth = WXDomUtils.getContentWidth(this);
     if (contentWidth > 0) {
       spanned = createSpanned(mText);
-      layout = createLayout(contentWidth, true, layout);
-      previousWidth = layout.getWidth();
+      if(mText != null){
+         layout = createLayout(contentWidth, true, layout);
+         previousWidth = layout.getWidth();
+      }else{
+         previousWidth = 0;
+      }
     }
   }
 
@@ -298,8 +324,13 @@ public class WXTextDomObject extends WXDomObject {
     textWidth = getTextWidth(mTextPaint, width, forceWidth);
     Layout layout;
     if (!FloatUtil.floatsEqual(previousWidth, textWidth) || previousLayout == null) {
-      layout = new StaticLayout(spanned, mTextPaint, (int) Math.ceil(textWidth),
-                                Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
+      boolean forceRtl = false;
+      Object direction = getStyles().get(Constants.Name.DIRECTION);
+      if (direction != null && "text".equals(mType)) {
+        forceRtl = direction.equals(Constants.Name.RTL);
+      }
+      layout = StaticLayoutProxy.create(spanned, mTextPaint, (int) Math.ceil(textWidth),
+          Layout.Alignment.ALIGN_NORMAL, 1, 0, false, forceRtl);
     } else {
       layout = previousLayout;
     }
@@ -308,37 +339,86 @@ public class WXTextDomObject extends WXDomObject {
       lastLineStart = layout.getLineStart(mNumberOfLines - 1);
       lastLineEnd = layout.getLineEnd(mNumberOfLines - 1);
       if (lastLineStart < lastLineEnd) {
-        String text = mText.subSequence(0, lastLineStart).toString() +
-                               truncate(mText.substring(lastLineStart, lastLineEnd),
-                                        mTextPaint, layout.getWidth(), textOverflow);
-        spanned = createSpanned(text);
+        SpannableStringBuilder builder = null;
+        if(lastLineStart > 0) {
+          builder = new SpannableStringBuilder(spanned.subSequence(0, lastLineStart));
+        }else{
+          builder = new SpannableStringBuilder();
+        }
+        Editable lastLine = new SpannableStringBuilder(spanned.subSequence(lastLineStart, lastLineEnd));
+        builder.append(truncate(lastLine, mTextPaint, (int) Math.ceil(textWidth), textOverflow));
+        adjustSpansRange(spanned, builder);
+        spanned = builder;
         return new StaticLayout(spanned, mTextPaint, (int) Math.ceil(textWidth),
-                                Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
+            Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
       }
     }
     return layout;
   }
 
-  public @NonNull String truncate(@Nullable String source, @NonNull TextPaint paint,
-                                  int desired, @Nullable TextUtils.TruncateAt truncateAt){
-    if(!TextUtils.isEmpty(source)){
-      StringBuilder builder;
-      Spanned spanned;
-      StaticLayout layout;
-      for(int i=source.length();i>0;i--){
-        builder=new StringBuilder(i+1);
-        builder.append(source, 0, i);
-        if(truncateAt!=null){
-          builder.append(ELLIPSIS);
+  /**
+   * Truncate the source span to the specified lines.
+   * Caller of this method must ensure that the lines of text is <strong>greater than desired lines and need truncate</strong>.
+   * Otherwise, unexpected behavior may happen.
+   * @param source The source span.
+   * @param paint the textPaint
+   * @param desired specified lines.
+   * @param truncateAt truncate method, null value means clipping overflow text directly, non-null value means using ellipsis strategy to clip
+   * @return The spans after clipped.
+   */
+  private
+  @NonNull
+  Spanned truncate(@Nullable Editable source, @NonNull TextPaint paint,
+      int desired, @Nullable TextUtils.TruncateAt truncateAt) {
+    Spanned ret = new SpannedString("");
+    if (!TextUtils.isEmpty(source) && source.length() > 0) {
+      if (truncateAt != null) {
+        source.append(ELLIPSIS);
+        Object[] spans = source.getSpans(0, source.length(), Object.class);
+        for(Object span:spans){
+          int start = source.getSpanStart(span);
+          int end = source.getSpanEnd(span);
+          if(start == 0 && end == source.length()-1){
+             source.removeSpan(span);
+             source.setSpan(span, 0, source.length(), source.getSpanFlags(span));
+          }
         }
-        spanned = createSpanned(builder.toString());
-        layout = new StaticLayout(spanned, paint, desired, Layout.Alignment.ALIGN_NORMAL, 1, 0, true);
-        if(layout.getLineCount()<=1){
-          return spanned.toString();
+      }
+
+      StaticLayout layout;
+      int startOffset;
+
+      while (source.length() > 1) {
+        startOffset = source.length() -1;
+        if (truncateAt != null) {
+          startOffset -= 1;
+        }
+        source.delete(startOffset, startOffset+1);
+        layout = new StaticLayout(source, paint, desired, Layout.Alignment.ALIGN_NORMAL, 1, 0, false);
+        if (layout.getLineCount() <= 1) {
+          ret = source;
+          break;
         }
       }
     }
-    return "";
+    return ret;
+  }
+
+  /**
+   * Adjust span range after truncate due to the wrong span range during span copy and slicing.
+   * @param beforeTruncate The span before truncate
+   * @param afterTruncate The span after truncate
+   */
+  private void adjustSpansRange(@NonNull Spanned beforeTruncate, @NonNull Spannable afterTruncate){
+    Object[] spans = beforeTruncate.getSpans(0, beforeTruncate.length(), Object.class);
+    for(Object span:spans){
+      int start = beforeTruncate.getSpanStart(span);
+      int end = beforeTruncate.getSpanEnd(span);
+      if(start == 0 && end == beforeTruncate.length()){
+        afterTruncate.removeSpan(span);
+        afterTruncate.setSpan(span, 0, afterTruncate.length(), beforeTruncate.getSpanFlags(span));
+      }
+    }
   }
 
   /**
@@ -350,7 +430,13 @@ public class WXTextDomObject extends WXDomObject {
    * @return if forceToDesired is false, it will be the minimum value of the width of text and
    * outerWidth in case of outerWidth is defined, in other case, it will be outer width.
    */
-  /** package **/ float getTextWidth(TextPaint textPaint,float outerWidth, boolean forceToDesired) {
+   float getTextWidth(TextPaint textPaint,float outerWidth, boolean forceToDesired) {
+     if(mText == null){
+       if(forceToDesired){
+         return  outerWidth;
+       }
+        return  0;
+     }
     float textWidth;
     if (forceToDesired) {
       textWidth = outerWidth;
@@ -385,7 +471,7 @@ public class WXTextDomObject extends WXDomObject {
     List<SetSpanOperation> ops = createSetSpanOperation(spannable.length(), spanFlag);
     if (mFontSize == UNSET) {
       ops.add(new SetSpanOperation(0, spannable.length(),
-                                   new AbsoluteSizeSpan(WXText.sDEFAULT_SIZE), spanFlag));
+          new AbsoluteSizeSpan(WXText.sDEFAULT_SIZE), spanFlag));
     }
     Collections.reverse(ops);
     for (SetSpanOperation op : ops) {
@@ -408,7 +494,7 @@ public class WXTextDomObject extends WXDomObject {
       }
       if (mIsColorSet) {
         ops.add(new SetSpanOperation(start, end,
-                                     new ForegroundColorSpan(mColor), spanFlag));
+            new ForegroundColorSpan(mColor), spanFlag));
       }
       if (mFontSize != UNSET) {
         ops.add(new SetSpanOperation(start, end, new AbsoluteSizeSpan(mFontSize), spanFlag));
@@ -417,8 +503,8 @@ public class WXTextDomObject extends WXDomObject {
           || mFontWeight != UNSET
           || mFontFamily != null) {
         ops.add(new SetSpanOperation(start, end,
-                                     new WXCustomStyleSpan(mFontStyle, mFontWeight, mFontFamily),
-                                     spanFlag));
+            new WXCustomStyleSpan(mFontStyle, mFontWeight, mFontFamily),
+            spanFlag));
       }
       ops.add(new SetSpanOperation(start, end, new AlignmentSpan.Standard(mAlignment), spanFlag));
       if (mLineHeight != UNSET) {
@@ -438,6 +524,7 @@ public class WXTextDomObject extends WXDomObject {
       layout = null;
       mTextPaint = new TextPaint(mTextPaint);
     }
+    hasBeenMeasured = false;
   }
 
   /**

@@ -39,7 +39,7 @@ checkstyle {
 version = "0.9.4"
 
 android {
-    compileSdkVersion 23
+    compileSdkVersion COMPILE_SDK_VERSION as int
     buildToolsVersion '26.0.2'
     resourcePrefix "weex"
 
@@ -76,7 +76,7 @@ android {
         buildConfigField "String", "buildJavascriptFrameworkVersion", "\"${jsfmVersion}\""
         buildConfigField "String", "buildVersion", "\"${version}\""
         minSdkVersion 14
-        targetSdkVersion project.androidTargetSDK
+        targetSdkVersion COMPILE_SDK_VERSION as int
         versionCode 1
         versionName "1.1"
         ndk {
@@ -126,9 +126,9 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    provided 'com.android.support:recyclerview-v7:23.1.1'
-    provided 'com.android.support:support-v4:23.1.1'
-    provided 'com.android.support:appcompat-v7:23.1.1'
+    provided "com.android.support:recyclerview-v7:${PROJECT_SUPPORTLIBVERSION}"
+    provided "com.android.support:support-v4:${PROJECT_SUPPORTLIBVERSION}"
+    provided "com.android.support:appcompat-v7:${PROJECT_SUPPORTLIBVERSION}"
     provided 'com.alibaba:fastjson:1.1.46.android'
 
     testCompile 'com.alibaba:fastjson:1.1.46.android'
