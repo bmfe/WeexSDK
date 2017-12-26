@@ -45,223 +45,227 @@ import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
 public class WXImageView extends ImageView implements WXGestureObservable,
-                                                      IRenderStatus<WXImage>,
-                                                      IRenderResult<WXImage>, WXImage.Measurable {
+        IRenderStatus<WXImage>,
+        IRenderResult<WXImage>, WXImage.Measurable {
 
-  private WeakReference<WXImage> mWeakReference;
-  private WXGesture wxGesture;
-  private float[] borderRadius;
-  private boolean gif;
-  private boolean isBitmapReleased = false;
-  private boolean enableBitmapAutoManage = false;
+    private WeakReference<WXImage> mWeakReference;
+    private WXGesture wxGesture;
+    private float[] borderRadius;
+    private boolean gif;
+    private boolean isBitmapReleased = false;
+    private boolean enableBitmapAutoManage = false;
 
 
-  public WXImageView(Context context) {
-    super(context);
-  }
+    public WXImageView(Context context) {
+        super(context);
+        initPaint();
+    }
 
-  @Override
-  public void setImageResource(int resId) {
-    Drawable drawable = getResources().getDrawable(resId);
-    setImageDrawable(drawable);
-  }
+    @Override
+    public void setImageResource(int resId) {
+        Drawable drawable = getResources().getDrawable(resId);
+        setImageDrawable(drawable);
+    }
 
-  public void setImageDrawable(@Nullable Drawable drawable, boolean isGif) {
-    this.gif = isGif;
-    ViewGroup.LayoutParams layoutParams;
-    if ((layoutParams = getLayoutParams()) != null) {
-      Drawable wrapDrawable = ImageDrawable.createImageDrawable(drawable,
-                                                                getScaleType(), borderRadius,
-                                                                layoutParams.width - getPaddingLeft() - getPaddingRight(),
-                                                                layoutParams.height - getPaddingTop() - getPaddingBottom(),
-                                                                isGif);
-      if (wrapDrawable instanceof ImageDrawable) {
-        ImageDrawable imageDrawable = (ImageDrawable) wrapDrawable;
-        if (!Arrays.equals(imageDrawable.getCornerRadii(), borderRadius)) {
-          imageDrawable.setCornerRadii(borderRadius);
+    public void setImageDrawable(@Nullable Drawable drawable, boolean isGif) {
+        this.gif = isGif;
+        ViewGroup.LayoutParams layoutParams;
+        if ((layoutParams = getLayoutParams()) != null) {
+            Drawable wrapDrawable = ImageDrawable.createImageDrawable(drawable,
+                    getScaleType(), borderRadius,
+                    layoutParams.width - getPaddingLeft() - getPaddingRight(),
+                    layoutParams.height - getPaddingTop() - getPaddingBottom(),
+                    isGif);
+            if (wrapDrawable instanceof ImageDrawable) {
+                ImageDrawable imageDrawable = (ImageDrawable) wrapDrawable;
+                if (!Arrays.equals(imageDrawable.getCornerRadii(), borderRadius)) {
+                    imageDrawable.setCornerRadii(borderRadius);
+                }
+            }
+            super.setImageDrawable(wrapDrawable);
+            if (mWeakReference != null) {
+                WXImage component = mWeakReference.get();
+                if (component != null) {
+                    component.readyToRender();
+                }
+            }
         }
-      }
-      super.setImageDrawable(wrapDrawable);
-      if (mWeakReference != null) {
-        WXImage component = mWeakReference.get();
-        if (component != null) {
-          component.readyToRender();
+    }
+
+    @Override
+    public void setImageDrawable(@Nullable Drawable drawable) {
+        setImageDrawable(drawable, false);
+    }
+
+    @Override
+    public void setImageBitmap(@Nullable Bitmap bm) {
+        setImageDrawable(bm == null ? null : new BitmapDrawable(getResources(), bm));
+    }
+
+    @Override
+    public void registerGestureListener(WXGesture wxGesture) {
+        this.wxGesture = wxGesture;
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        boolean result = super.onTouchEvent(event);
+        if (wxGesture != null) {
+            result |= wxGesture.onTouch(this, event);
         }
-      }
+        return result;
     }
-  }
 
-  @Override
-  public void setImageDrawable(@Nullable Drawable drawable) {
-    setImageDrawable(drawable, false);
-  }
-
-  @Override
-  public void setImageBitmap(@Nullable Bitmap bm) {
-    setImageDrawable(bm == null ? null : new BitmapDrawable(getResources(), bm));
-  }
-
-  @Override
-  public void registerGestureListener(WXGesture wxGesture) {
-    this.wxGesture = wxGesture;
-  }
-
-  @Override
-  public boolean onTouchEvent(MotionEvent event) {
-    boolean result = super.onTouchEvent(event);
-    if (wxGesture != null) {
-      result |= wxGesture.onTouch(this, event);
+    public void setBorderRadius(@NonNull float[] borderRadius) {
+        this.borderRadius = borderRadius;
     }
-    return result;
-  }
 
-  public void setBorderRadius(@NonNull float[] borderRadius) {
-    this.borderRadius = borderRadius;
-  }
-
-  @Override
-  protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-    super.onLayout(changed, left, top, right, bottom);
-    if (changed) {
-      setImageDrawable(getDrawable(), gif);
-    }
-  }
-
-  @Override
-  public void holdComponent(WXImage component) {
-    mWeakReference = new WeakReference<>(component);
-  }
-
-  @Nullable
-  @Override
-  public WXImage getComponent() {
-    return null != mWeakReference ? mWeakReference.get() : null;
-  }
-
-  @Override
-  public int getNaturalWidth() {
-    Drawable drawable = getDrawable();
-    if (drawable != null) {
-      if (drawable instanceof ImageDrawable) {
-        return ((ImageDrawable) drawable).getBitmapWidth();
-      } else if (drawable instanceof BitmapDrawable) {
-        Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
-        if (bitmap != null) {
-          return bitmap.getWidth();
-        } else {
-          WXLogUtils.w("WXImageView", "Bitmap on " + drawable.toString() + " is null");
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (changed) {
+            setImageDrawable(getDrawable(), gif);
         }
-      } else {
-        WXLogUtils.w("WXImageView", "Not supported drawable type: " + drawable.getClass().getSimpleName());
-      }
     }
-    return -1;
-  }
 
-  @Override
-  public int getNaturalHeight() {
-    Drawable drawable = getDrawable();
-    if (drawable != null) {
-      if (drawable instanceof ImageDrawable) {
-        return ((ImageDrawable) drawable).getBitmapHeight();
-      } else if (drawable instanceof BitmapDrawable) {
-        Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
-        if (bitmap != null) {
-          return bitmap.getHeight();
-        } else {
-          WXLogUtils.w("WXImageView", "Bitmap on " + drawable.toString() + " is null");
+    @Override
+    public void holdComponent(WXImage component) {
+        mWeakReference = new WeakReference<>(component);
+    }
+
+    @Nullable
+    @Override
+    public WXImage getComponent() {
+        return null != mWeakReference ? mWeakReference.get() : null;
+    }
+
+    @Override
+    public int getNaturalWidth() {
+        Drawable drawable = getDrawable();
+        if (drawable != null) {
+            if (drawable instanceof ImageDrawable) {
+                return ((ImageDrawable) drawable).getBitmapWidth();
+            } else if (drawable instanceof BitmapDrawable) {
+                Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
+                if (bitmap != null) {
+                    return bitmap.getWidth();
+                } else {
+                    WXLogUtils.w("WXImageView", "Bitmap on " + drawable.toString() + " is null");
+                }
+            } else {
+                WXLogUtils.w("WXImageView", "Not supported drawable type: " + drawable.getClass()
+                        .getSimpleName());
+            }
         }
-      } else {
-        WXLogUtils.w("WXImageView", "Not supported drawable type: " + drawable.getClass().getSimpleName());
-      }
+        return -1;
     }
-    return -1;
-  }
 
-  private boolean mOutWindowVisibilityChangedReally;
-  @Override
-  public void dispatchWindowVisibilityChanged(int visibility) {
-    mOutWindowVisibilityChangedReally = true;
-    super.dispatchWindowVisibilityChanged(visibility);
-    mOutWindowVisibilityChangedReally = false;
-  }
-
-  @Override
-  protected void onWindowVisibilityChanged(int visibility) {
-    super.onWindowVisibilityChanged(visibility);
-    if(mOutWindowVisibilityChangedReally){
-      if(visibility == View.VISIBLE){
-         autoRecoverImage();
-      }else{
-         autoReleaseImage();
-      }
-    }
-  }
-  
-
-  @Override
-  protected void onAttachedToWindow() {
-    super.onAttachedToWindow();
-    autoRecoverImage();
-  }
-
-  @Override
-  protected void onDetachedFromWindow() {
-    super.onDetachedFromWindow();
-    autoReleaseImage();
-
-  }
-
-
-  @Override
-  public void onStartTemporaryDetach () {
-    super.onStartTemporaryDetach();
-    autoReleaseImage();
-
-  }
-
-
-  @Override
-  public void onFinishTemporaryDetach () {
-    super.onFinishTemporaryDetach();
-    autoRecoverImage();
-  }
-
-
-  protected void setEnableBitmapAutoManage(boolean enableBitmapAutoManage) {
-     this.enableBitmapAutoManage = enableBitmapAutoManage;
-  }
-
-  protected void autoReleaseImage(){
-      if(enableBitmapAutoManage) {
-        if (!isBitmapReleased) {
-          isBitmapReleased = true;
-          WXImage image = getComponent();
-          if (image != null) {
-            image.autoReleaseImage();
-          }
+    @Override
+    public int getNaturalHeight() {
+        Drawable drawable = getDrawable();
+        if (drawable != null) {
+            if (drawable instanceof ImageDrawable) {
+                return ((ImageDrawable) drawable).getBitmapHeight();
+            } else if (drawable instanceof BitmapDrawable) {
+                Bitmap bitmap = ((BitmapDrawable) drawable).getBitmap();
+                if (bitmap != null) {
+                    return bitmap.getHeight();
+                } else {
+                    WXLogUtils.w("WXImageView", "Bitmap on " + drawable.toString() + " is null");
+                }
+            } else {
+                WXLogUtils.w("WXImageView", "Not supported drawable type: " + drawable.getClass()
+                        .getSimpleName());
+            }
         }
-      }
-  }
-
-  protected void autoRecoverImage(){
-    if(enableBitmapAutoManage){
-      if(isBitmapReleased){
-        WXImage image = getComponent();
-        if(image != null){
-          image.autoRecoverImage();
-        }
-        isBitmapReleased = false;
-      }
+        return -1;
     }
-  }
+
+    private boolean mOutWindowVisibilityChangedReally;
+
+    @Override
+    public void dispatchWindowVisibilityChanged(int visibility) {
+        mOutWindowVisibilityChangedReally = true;
+        super.dispatchWindowVisibilityChanged(visibility);
+        mOutWindowVisibilityChangedReally = false;
+    }
+
+    @Override
+    protected void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        if (mOutWindowVisibilityChangedReally) {
+            if (visibility == View.VISIBLE) {
+                autoRecoverImage();
+            } else {
+                autoReleaseImage();
+            }
+        }
+    }
 
 
- /**
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        autoRecoverImage();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        autoReleaseImage();
+
+    }
+
+
+    @Override
+    public void onStartTemporaryDetach() {
+        super.onStartTemporaryDetach();
+        autoReleaseImage();
+
+    }
+
+
+    @Override
+    public void onFinishTemporaryDetach() {
+        super.onFinishTemporaryDetach();
+        autoRecoverImage();
+    }
+
+
+    protected void setEnableBitmapAutoManage(boolean enableBitmapAutoManage) {
+        this.enableBitmapAutoManage = enableBitmapAutoManage;
+    }
+
+    protected void autoReleaseImage() {
+        if (enableBitmapAutoManage) {
+            if (!isBitmapReleased) {
+                isBitmapReleased = true;
+                WXImage image = getComponent();
+                if (image != null) {
+                    image.autoReleaseImage();
+                }
+            }
+        }
+    }
+
+    protected void autoRecoverImage() {
+        if (enableBitmapAutoManage) {
+            if (isBitmapReleased) {
+                WXImage image = getComponent();
+                if (image != null) {
+                    image.autoRecoverImage();
+                }
+                isBitmapReleased = false;
+            }
+        }
+    }
+
+
+    /**
      * ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝添加方法＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
      **/
 
-  private String mCurrentUrl;
+    private String mCurrentUrl;
 
     public void setCurrentUrl(String url) {
         this.mCurrentUrl = url;
@@ -406,8 +410,6 @@ public class WXImageView extends ImageView implements WXGestureObservable,
 
 
     /**＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝结束＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝**/
-
-
 
 
 }
