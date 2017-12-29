@@ -159,7 +159,7 @@ public class WXCircleViewPager extends ViewPager implements WXGestureObservable,
 
     private void handleForceTangible(MotionEvent ev) {
         if (mWXSlide.isForceTanguble()) {
-            if (!needLoop) {
+            if (!needLoop && mWXSlide.isPostEdge()) {
                 postMotionEventToParent(ev);
             } else {
                 this.requestDisallowInterceptTouchEvent(true);

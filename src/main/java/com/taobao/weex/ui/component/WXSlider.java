@@ -308,6 +308,7 @@ public class WXSlider extends WXVContainer<FrameLayout> {
     }
 
     private boolean mForceTanguble;
+    private boolean mPostEdge;
 
     @WXComponentProp(name = "forceTangible")
     public void setInterrupt(boolean forceTangible) {
@@ -316,6 +317,15 @@ public class WXSlider extends WXVContainer<FrameLayout> {
 
     public boolean isForceTanguble() {
         return mForceTanguble;
+    }
+
+    @WXComponentProp(name = "postEdge")
+    public void setEdgePost(boolean postEdge) {
+        this.mPostEdge = postEdge;
+    }
+
+    public boolean isPostEdge() {
+        return mPostEdge;
     }
 
     @Deprecated

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -55,6 +55,7 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
     private int mChildCount;
     private boolean mLock = false;
     private long mDownTimeStamp;
+    private int mLastMoveY;
 
     @Override
     public boolean postDelayed(Runnable action, long delayMillis) {
@@ -69,6 +70,9 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
     private void init() {
         setWillNotDraw(false);
         setOverScrollMode(View.OVER_SCROLL_NEVER);
+        setDescendantFocusability(FOCUS_BEFORE_DESCENDANTS);
+        setFocusable(true);
+        setFocusableInTouchMode(true);
     }
 
     public WXHorizontalScrollView(Context context, AttributeSet attrs) {
@@ -76,6 +80,7 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
         init();
 
     }
+
 
     @Override
     protected void onScrollChanged(int l, int t, int oldl, int oldt) {
@@ -217,19 +222,22 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
                     mLastMoveX = mDownX;
                 }
                 int moveX = (int) ev.getX();
+                int moveY = (int) ev.getY();
                 scrollBy(mLastMoveX - moveX, 0);
                 mLastMoveX = moveX;
+                mLastMoveY = moveY;
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 boolean isFiling = false;
                 mLastMoveX = 0;
+                mLastMoveY = 0;
                 long upTimeStamp = new Date().getTime();
                 float v = Math.abs(ev.getX() - mDownX) / (upTimeStamp - mDownTimeStamp);
                 if (v > THRESHOLD_VELOCITY) {
                     isFiling = true;
                 }
-                if (Math.abs(ev.getX() - mDownX) > mPageWidth / 2 || isFiling) {
+                if (Math.abs(ev.getX() - mDownX) > mPageWidth / 4) {
                     if (ev.getX() > mDownX) {
                         move(PRE);
                     } else {
@@ -254,11 +262,14 @@ public class WXHorizontalScrollView extends HorizontalScrollView implements IWXS
     }
 
     private void move(int action) {
+        float scrollX = getScrollX();
         if (NEXT == action) {
+            mCurrentPage = (int) (scrollX / mPageWidth);
             if (mCurrentPage < mChildCount - 1) {
                 mCurrentPage++;
             }
         } else if (PRE == action) {
+            mCurrentPage = (int) Math.ceil(scrollX / mPageWidth);
             if (mCurrentPage > 0) {
                 mCurrentPage--;
             }
