@@ -197,13 +197,13 @@ public class WXText extends WXComponent<WXTextView> {
     public static final int sDEFAULT_SIZE = 32;
     private BroadcastReceiver mTypefaceObserver;
     private String mFontFamily;
+
     private DefaultBroadcastReceiver mReceiver;
     private Layout mCurrentLayout;
     private String mCurrentFontSize = "NORM";
     private String mChangeFontSize;
     private float mCurrentEnlarge;
     private float mCurrentScale = 1;
-
 
     public static class Creator implements ComponentCreator {
 
@@ -225,20 +225,6 @@ public class WXText extends WXComponent<WXTextView> {
         super(instance, node, parent);
         registerBroadCast();
         initFontSize();
-        registerIconFont();
-    }
-
-    /**
-     * 监听iconfont通知
-     */
-    private void registerIconFont() {
-        WXStyle styles = getDomObject().getStyles();
-        Object fontFamily = styles.get(Constants.Name.FONT_FAMILY);
-        if (fontFamily != null) {
-            IntentFilter filter = new IntentFilter();
-            filter.addAction("com.benmu.inconfont.update");
-            LocalBroadcastManager.getInstance(getContext()).registerReceiver(mReceiver, filter);
-        }
     }
 
     /**
@@ -258,7 +244,6 @@ public class WXText extends WXComponent<WXTextView> {
     }
 
     private void updateFontSize() {
-
         if (getDomObject() != null && getDomObject().getStyles().get(Constants.Name.FONT_SIZE) ==
                 null) {
             WXStyle s = getDomObject().getStyles();
@@ -266,11 +251,9 @@ public class WXText extends WXComponent<WXTextView> {
             updateStyle(s);
             return;
         }
-
         if (mChangeFontSize == null) {
             return;
         }
-
         WXStyle styles = null;
         WXAttr attrs = null;
         if (getDomObject() != null) {
@@ -386,7 +369,6 @@ public class WXText extends WXComponent<WXTextView> {
         }
     }
 
-
     private void registerTypefaceObserver(String desiredFontFamily) {
         if (WXEnvironment.getApplication() == null) {
             WXLogUtils.w("WXText", "ApplicationContent is null on register typeface observer");
@@ -489,26 +471,12 @@ public class WXText extends WXComponent<WXTextView> {
     public class DefaultBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals("com.benmu.inconfont.update")) {
-                updateStyle(getDomObject().getStyles());
-            } else {
-                String size = intent.getStringExtra("currentFontSize");
-                if (size == null) {
-                    return;
-                }
-                mChangeFontSize = size;
-                updateFontSize();
+            String size = intent.getStringExtra("currentFontSize");
+            if (size == null) {
+                return;
             }
-
-        }
-    }
-
-
-    @Override
-    public void onActivityDestroy() {
-        super.onActivityDestroy();
-        if (mReceiver != null) {
-            LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(mReceiver);
+            mChangeFontSize = size;
+            updateFontSize();
         }
     }
 }
