@@ -18,6 +18,7 @@
  */
 package com.taobao.weex.ui.module;
 
+import com.alibaba.fastjson.JSON;
 import com.taobao.weappplus_sdk.BuildConfig;
 import com.taobao.weex.WXSDKInstanceTest;
 import com.taobao.weex.bridge.JSCallback;
@@ -30,13 +31,13 @@ import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
-import org.robolectric.RobolectricGradleTestRunner;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 /**
  * Created by sospartan on 7/28/16.
  */
-@RunWith(RobolectricGradleTestRunner.class)
+@RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class, sdk = 19)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*","org.json.*" })
 @PrepareForTest()
@@ -56,25 +57,25 @@ public class WXModalUIModuleTest {
 
   @Test
   public void testToast() throws Exception {
-    module.toast("{}");
+    module.toast(JSON.parseObject("{}"));
   }
 
   @Test
   public void testAlert() throws Exception {
     JSCallback callback = Mockito.mock(JSCallback.class);
-    module.alert("{}",callback);
+    module.alert(JSON.parseObject("{}"),callback);
 
   }
 
   @Test
   public void testConfirm() throws Exception {
     JSCallback callback = Mockito.mock(JSCallback.class);
-    module.confirm("{}",callback);
+    module.confirm(JSON.parseObject("{}"),callback);
   }
 
   @Test
   public void testPrompt() throws Exception {
     JSCallback callback = Mockito.mock(JSCallback.class);
-    module.prompt("{}",callback);
+    module.prompt(JSON.parseObject("{}"),callback);
   }
 }

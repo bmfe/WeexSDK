@@ -18,6 +18,7 @@
  */
 package com.taobao.weex.ui.animation;
 
+import com.alibaba.fastjson.JSONObject;
 import com.taobao.weappplus_sdk.BuildConfig;
 import com.taobao.weex.WXSDKInstanceTest;
 
@@ -26,13 +27,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.robolectric.RobolectricGradleTestRunner;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 /**
  * Created by sospartan on 7/29/16.
  */
-@RunWith(RobolectricGradleTestRunner.class)
+@RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class, sdk = 19)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*","org.json.*" })
 @PrepareForTest()
@@ -50,8 +51,8 @@ public class WXAnimationModuleTest {
 
   @Test
   public void testTransition() throws Exception {
-    module.transition("","","");
-    module.transition("test","test","");
+    module.transition("", JSONObject.parseObject("{}"),"");
+    module.transition("test", JSONObject.parseObject("{\"test\":\"test\"}"),"");
   }
 
   @Test

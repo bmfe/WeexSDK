@@ -19,51 +19,50 @@
 package com.taobao.weex.adapter;
 
 
-import android.graphics.Typeface;
-
 import com.taobao.weex.common.WXRequest;
 import com.taobao.weex.common.WXResponse;
-import com.taobao.weex.utils.FontDO;
 
 import java.util.List;
 import java.util.Map;
 
 public interface IWXHttpAdapter {
 
+  /**
+   * http request method
+   *
+   * @param request weex assemble request
+   * @param listener http response notify
+   */
+  void sendRequest(WXRequest request, OnHttpListener listener);
+
+  interface OnHttpListener {
+
     /**
-     * http request method
-     *
-     * @param request  weex assemble request
-     * @param listener http response notify
+     * start request
      */
-    void sendRequest(WXRequest request, OnHttpListener listener);
+    void onHttpStart();
 
-    interface OnHttpListener {
+    /**
+     * headers received
+     */
+    void onHeadersReceived(int statusCode,Map<String,List<String>> headers);
 
-        /**
-         * start request
-         */
-        void onHttpStart();
+    /**
+     * post progress
+     * @param uploadProgress
+     */
+    void onHttpUploadProgress(int uploadProgress);
 
-        /**
-         * headers received
-         */
-        void onHeadersReceived(int statusCode, Map<String, List<String>> headers);
+    /**
+     * response loaded length (bytes), full length should read from headers (content-length)
+     * @param loadedLength
+     */
+    void onHttpResponseProgress(int loadedLength);
 
-        /**
-         * post progress
-         */
-        void onHttpUploadProgress(int uploadProgress);
-
-        /**
-         * response loaded length (bytes), full length should read from headers (content-length)
-         */
-        void onHttpResponseProgress(int loadedLength);
-
-        /**
-         * http response finish
-         */
-        void onHttpFinish(WXResponse response);
-    }
-
+    /**
+     * http response finish
+     * @param response
+     */
+    void onHttpFinish(WXResponse response);
+  }
 }

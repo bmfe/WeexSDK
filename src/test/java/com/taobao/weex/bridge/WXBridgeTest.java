@@ -18,13 +18,14 @@
  */
 package com.taobao.weex.bridge;
 
+import com.alibaba.fastjson.JSON;
 import com.taobao.weappplus_sdk.BuildConfig;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.robolectric.RobolectricGradleTestRunner;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 import static org.junit.Assert.*;
@@ -32,7 +33,7 @@ import static org.junit.Assert.*;
 /**
  * Created by sospartan on 27/09/2016.
  */
-@RunWith(RobolectricGradleTestRunner.class)
+@RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class, sdk = 19)
 @PowerMockIgnore( {"org.mockito.*", "org.robolectric.*", "android.*"})
 public class WXBridgeTest {
@@ -46,12 +47,12 @@ public class WXBridgeTest {
 
   @Test
   public void testCallNative() throws Exception {
-    bridge.callNative("1","{}","100");
+    bridge.callNative("1", JSON.parseArray("[]"),"100");
   }
 
   @Test
   public void testCallAddElement() throws Exception {
-    bridge.callAddElement("1","1","{}","0","100");
+    bridge.callAddElement("1","1", JSON.parseObject("{}"),"0","100");
   }
 
 

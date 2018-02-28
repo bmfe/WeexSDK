@@ -20,6 +20,7 @@ package com.taobao.weex.utils;
 
 import com.taobao.weappplus_sdk.BuildConfig;
 import com.taobao.weex.WXEnvironment;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,16 +29,13 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
-import org.robolectric.RobolectricGradleTestRunner;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.when;
 
 /**
  * Created by sospartan on 9/18/16.
  */
-@RunWith(RobolectricGradleTestRunner.class)
+@RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class, sdk = 19)
 @PowerMockIgnore({ "org.mockito.*", "org.robolectric.*", "android.*" })
 @PrepareForTest({WXEnvironment.class})
@@ -49,7 +47,6 @@ public class WXLogUtilsTest {
 
   @Before
   public void setUp() throws Exception {
-    WXLogUtils.isShowLineNumber = true;
     PowerMockito.mockStatic(WXEnvironment.class);
     PowerMockito.when(WXEnvironment.isApkDebugable()).thenReturn(true);
   }
@@ -95,4 +92,17 @@ public class WXLogUtilsTest {
     Log.e("tag",new Throwable("test"));
   }
 
-}
+  @Test
+  public void testLogLevel() throws Exception {
+    WXEnvironment.sLogLevel = LogLevel.DEBUG;
+    Log.d("LogLevel.DEBUG", "test debug");
+    Log.w("LogLevel.DEBUG", "test warning");
+    Log.e("LogLevel.DEBUG", "test error");
+
+    WXEnvironment.sLogLevel = LogLevel.WARN;
+
+    Log.d("LogLevel.WARN", "test debug");
+    Log.w("LogLevel.WARN", "test warning");
+    Log.e("LogLevel.WARN", "test error");
+  }
+  }

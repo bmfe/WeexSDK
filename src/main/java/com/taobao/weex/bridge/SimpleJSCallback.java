@@ -18,12 +18,10 @@
  */
 package com.taobao.weex.bridge;
 
-import java.io.Serializable;
-
 /**
  * Created by sospartan on 27/10/2016.
  */
-public class SimpleJSCallback implements JSCallback,Serializable {
+public class SimpleJSCallback implements JSCallback {
   String mInstanceId;
   String mCallbackId;
 
