@@ -43,8 +43,8 @@ checkstyle {
 version = "0.18.0"
 
 android {
-    compileSdkVersion project.compileSdkVersion
-    buildToolsVersion project.buildToolsVersion
+    compileSdkVersion COMPILE_SDK_VERSION as int
+    buildToolsVersion BUILD_TOOLS_VERSION
     resourcePrefix "weex"
 
     useLibrary 'org.apache.http.legacy'
@@ -86,7 +86,7 @@ android {
         buildConfigField "String", "buildJavascriptFrameworkVersion", "\"${jsfmVersion}\""
         buildConfigField "String", "buildVersion", "\"${version}\""
         minSdkVersion 14
-        targetSdkVersion project.targetSdkVersion
+        targetSdkVersion TARGET_SDK_VERSION as int
         versionCode 1
         versionName "1.0"
         ndk {
@@ -137,12 +137,12 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    provided "com.android.support:recyclerview-v7:${project.supportLibVersion}"
-    provided "com.android.support:support-v4:${project.supportLibVersion}"
-    provided "com.android.support:appcompat-v7:${project.supportLibVersion}"
-    provided "com.alibaba:fastjson:${project.fastjsonLibVersion}"
+    provided "com.android.support:recyclerview-v7:${PROJECT_SUPPORTLIBVERSION}"
+    provided "com.android.support:support-v4:${PROJECT_SUPPORTLIBVERSION}"
+    provided "com.android.support:appcompat-v7:${PROJECT_SUPPORTLIBVERSION}"
+    provided "com.alibaba:fastjson:1.1.46.android"
 
-    testCompile "com.alibaba:fastjson:${project.fastjsonLibVersion}"
+    testCompile "com.alibaba:fastjson:1.1.46.android"
     testCompile 'junit:junit:4.12'
     testCompile 'org.hamcrest:hamcrest-core:1.3'
     testCompile 'org.javassist:javassist:3.20.0-GA'
