@@ -35,6 +35,7 @@ import com.taobao.weex.ui.view.refresh.core.WXRefreshView;
 import com.taobao.weex.ui.view.refresh.core.WXSwipeLayout;
 import com.taobao.weex.utils.WXResourceUtils;
 import com.taobao.weex.utils.WXUtils;
+import com.taobao.weex.utils.WXViewUtils;
 
 /**
  * BounceView(SwipeLayout) contains Scroller/List and refresh/loading view
@@ -226,4 +227,14 @@ public abstract class BaseBounceView<T extends View> extends FrameLayout {
     public abstract void onRefreshingComplete();
 
     public abstract void onLoadmoreComplete();
+
+    //benmu.org
+
+    public void setCustomHeaderView(View view){
+        setRefreshEnable(true);
+        swipeLayout.setRefreshHeight(WXViewUtils.dip2px(40));
+        swipeLayout.getHeaderView().setRefreshView(view);
+    }
+
+    //benmu.org
 }

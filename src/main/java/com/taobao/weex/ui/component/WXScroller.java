@@ -757,4 +757,16 @@ public class WXScroller extends WXVContainer<ViewGroup> implements WXScrollViewL
     }
     return mScrollStartEndHelper;
   }
+
+  //benmu.org
+  private boolean mPagingEnable;
+  @WXComponentProp(name = "pagingEnabled")
+  public void setPagingEnable(boolean pagingEnable){
+    this.mPagingEnable = pagingEnable;
+    ViewGroup innerView = getInnerView();
+    if (innerView instanceof WXHorizontalScrollView) {
+      ((WXHorizontalScrollView) innerView).setPageEnable(this.mPagingEnable);
+    }
+  }
+  //benmu.org
 }

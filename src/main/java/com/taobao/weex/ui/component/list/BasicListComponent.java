@@ -34,6 +34,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.View;
@@ -1441,4 +1442,18 @@ public abstract class BasicListComponent<T extends ViewGroup & ListComponentView
     }
     return mScrollStartEndHelper;
   }
+
+
+  //benmu.org
+  protected boolean mAddCustomRefresh = false;
+
+  @WXComponentProp(name =Constants.Name.SHOW_REFRESH)
+  public void setBMRefresh(String showRefresh) {
+    this.mAddCustomRefresh = WXUtils.getBoolean(showRefresh,false);
+  }
+
+  public void addCustomRefresh() {
+  }
+
+  //benmu.org
 }

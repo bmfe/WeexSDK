@@ -23,6 +23,7 @@ import android.util.Pair;
 
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.annotation.Component;
+import com.taobao.weex.annotation.JSMethod;
 import com.taobao.weex.common.Constants;
 import com.taobao.weex.common.WXThread;
 import com.taobao.weex.dom.WXDomObject;
@@ -37,6 +38,8 @@ import com.taobao.weex.ui.component.WXRefresh;
 import com.taobao.weex.ui.component.WXVContainer;
 import com.taobao.weex.ui.view.listview.WXRecyclerView;
 import com.taobao.weex.ui.view.listview.adapter.ListBaseViewHolder;
+import com.taobao.weex.ui.view.refresh.bmrefresh.BMBaseRefresh;
+import com.taobao.weex.ui.view.refresh.bmrefresh.BMLoadingRefresh;
 import com.taobao.weex.ui.view.refresh.wrapper.BounceRecyclerView;
 import com.taobao.weex.utils.WXUtils;
 
@@ -117,6 +120,9 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
       }), 100);
     }
 
+    //benmu.org
+    addCustomRefresh();
+    //benmu.org
     // Synchronize DomObject's attr to Component and Native View
     if(mRecyclerDom != null && getHostView() != null && (mColumnWidth != mRecyclerDom.getColumnWidth() ||
             mColumnCount != mRecyclerDom.getColumnCount() ||
@@ -231,4 +237,29 @@ public class WXListComponent extends BasicListComponent<BounceRecyclerView> {
       getHostView().removeHeaderView(child);
     }
   }
+
+
+  //benmu.org
+  private BMBaseRefresh mBMRefresh;
+
+  @Override
+  public void addCustomRefresh() {
+    if (!mAddCustomRefresh || mBMRefresh != null) return;
+    mBMRefresh = new BMLoadingRefresh(getContext(), this);
+    getHostView().setOnRefreshListener(mBMRefresh);
+    getHostView().postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        getHostView().setCustomHeaderView(mBMRefresh);
+      }
+    }, 100);
+  }
+
+  @JSMethod
+  public void refreshEnd() {
+    if (mBMRefresh != null && mBMRefresh.mCurrentState == BMBaseRefresh.STATE_REFRESHING) {
+      mBMRefresh.onRefreshComplete();
+    }
+  }
+  //benmu.org
 }
